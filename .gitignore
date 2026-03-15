@@ -1,0 +1,82 @@
+###
+# Python
+###
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+###
+# TypeScript / Node
+###
+
+node_modules/
+
+# build output
+dist/
+build/
+.next/
+out/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+###
+# Environment variables
+###
+
+.env
+.env.*
+!.env.example
+
+###
+# OS
+###
+
+.DS_Store
+Thumbs.db
+
+###
+# Editor
+###
+
+.vscode/
+.idea/
+
+###
+# misc
+###
+
+*.log
+*.tmp
+*.swp
