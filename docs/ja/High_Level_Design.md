@@ -2,10 +2,25 @@
 
 | 項目 | 内容 |
 |------|------|
-| ドキュメントバージョン | v1.1 |
+| ドキュメントバージョン | v2.0 |
 | 作成日 | 2026-03-19 |
 | ステータス | Draft |
-| 対応要件定義書 | docs/ja/requirements_v1.md |
+| 対応要件定義書 | docs/ja/Requirements_Definition.md |
+
+---
+
+## v2.0 更新メモ
+
+本ドキュメントの旧記述には `LightGBM Ranker` 前提が残っているが、現時点の正式前提は `docs/ja/MODELING.md` に従う。
+
+- 本番採用モデルは `LightGBM Regressor`
+- Endpoint は `predicted_rewards` を返す
+- 動画候補は `video-1..video-10`
+- Backend は `predicted_rewards + UCB bonus` で最終選択する
+- Vertex AI Custom Endpoint は `emotion / pose / clip / Reward Regressor` を同一コンテナに統合する
+- Backend は特徴量抽出を行わず、Endpoint 出力のみを利用する
+
+Backend / Model 間の正式契約は `docs/_internal/Phase0_Endpoint_Contract.md` を参照する。
 
 ---
 
@@ -82,7 +97,7 @@
 | GCS 一時利用 | Veo3がGCSへ書き込む仕様のため内部的に一時利用。Signed URLを発行してフロントへ渡す |
 | Direct VPC | Backend → Vertex AI / Firestore / GCS の通信はVPC内で完結 |
 | UCB Banditインプロセス | 探索ロジック（UCB）はBackend内で処理。Firestoreとの読み書きレイテンシを最小化 |
-| LightGBM Ranker統合 | 学習済みRankerモデルは猫モデルと同一Vertex AI Endpointに統合。推論を1リクエストで完結させる |
+| 統合推論 Endpoint | `emotion / pose / clip / Reward Regressor` を同一Vertex AI Endpointに統合し、推論を1リクエストで完結させる |
 
 ### 1.2 リポジトリ構造
 

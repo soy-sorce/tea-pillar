@@ -1,715 +1,912 @@
 # MODELING.md
-## モデル設計書 — パターンB：報酬回帰 + ランキング（LightGBM Ranker / LambdaMART）
+
+## モデル設計書 v1
+### Cats Feature Extraction + Reward Regression for Template Selection
+
+| 項目 | 内容 |
+|---|---|
+| ドキュメント名 | MODELING.md |
+| バージョン | v2.0 |
+| 作成日 | 2026-03-20 |
+| ステータス | Draft |
+| 対応設計 | `docs/ja/High_Level_Design.md`, `docs/ja/INFRASTRUCTURE.md` |
+| 主目的 | 猫画像・音声から動画候補ごとの予測報酬を算出するモデルを定義し、Vertex AI Endpoint へデプロイ可能な形で整理する |
 
 ---
 
 ## 目次
 
-1. [コンセプト](#1-コンセプト)
-2. [データ構造](#2-データ構造)
-3. [特徴量設計](#3-特徴量設計)
-   - 3.1 [猫状態特徴量（before）](#31-猫状態特徴量before)
-   - 3.2 [動画クエリ特徴量](#32-動画クエリ特徴量)
-   - 3.3 [最終的な入力ベクトル](#33-最終的な入力ベクトル)
-4. [報酬設計](#4-報酬設計)
-5. [学習設計](#5-学習設計)
-   - 5.1 [アプローチ①：reward回帰（LightGBM Regressor）](#51-アプローチ①reward回帰lightgbm-regressor)
-   - 5.2 [アプローチ②：Learning to Rank（LightGBM Ranker）](#52-アプローチ②learning-to-ranklightgbm-ranker)
-   - 5.3 [採用アプローチの選定基準](#53-採用アプローチの選定基準)
-6. [検証設計](#6-検証設計)
-7. [推論フロー](#7-推論フロー)
-8. [JSONデータ構造とパイプライン実装](#8-jsonデータ構造とパイプライン実装)
-   - 8.1 [学習データのJSON構造](#81-学習データのjson構造)
-   - 8.2 [特徴量抽出パイプライン](#82-特徴量抽出パイプライン)
-   - 8.3 [DataFrameへの変換](#83-dataframeへの変換)
-9. [ViTPoseキーポイント → 角度特徴量への変換](#9-vitposeキーポイント--角度特徴量への変換)
-10. [CLIPプロンプト設計](#10-clipプロンプト設計)
-11. [未決定事項（TBD）](#11-未決定事項tbd)
+1. [この設計書の目的](#1-この設計書の目的)
+2. [結論サマリ](#2-結論サマリ)
+3. [採用方針](#3-採用方針)
+4. [システム全体におけるモデルの役割](#4-システム全体におけるモデルの役割)
+5. [採用モデル一覧](#5-採用モデル一覧)
+6. [モデル理論](#6-モデル理論)
+7. [学習データ設計](#7-学習データ設計)
+8. [特徴量設計](#8-特徴量設計)
+9. [CLIP 類似度特徴の意味と扱い](#9-clip-類似度特徴の意味と扱い)
+10. [報酬設計](#10-報酬設計)
+11. [学習設計](#11-学習設計)
+12. [推論設計](#12-推論設計)
+13. [デプロイ設計](#13-デプロイ設計)
+14. [入出力スキーマ](#14-入出力スキーマ)
+15. [学習成果物](#15-学習成果物)
+16. [実装責務の分割](#16-実装責務の分割)
+17. [開発・検証フロー](#17-開発検証フロー)
+18. [v1 の制約と既知のズレ](#18-v1-の制約と既知のズレ)
+19. [今後の拡張方針](#19-今後の拡張方針)
 
 ---
 
-## 1. コンセプト
+## 1. この設計書の目的
 
-猫の状態（before特徴量）と動画クエリの組み合わせに対して **reward（猫の反応変化量）を回帰予測** し、推論時に全11本の予測rewardをスコアリングして最良の1本を返す。
+本ドキュメントの目的は、猫向け動画選択に用いるモデルを以下の観点で一貫して定義することである。
 
-```
-入力: (猫のbefore状態特徴量) × (動画クエリ特徴量)
-      ↓
-学習: reward を予測するLightGBMモデル
-      ↓
-推論: 全11クエリを総当たりでスコアリング → 最高スコアのクエリIDを返す
-```
+- 学習時に何を入力し、何を予測するか
+- 猫画像・音声からどのような特徴量を作るか
+- Hugging Face 系モデルをどのように中間特徴抽出器として使うか
+- 学習済みモデルをどのような形式で保存し、どこへデプロイするか
+- Backend / Vertex AI Endpoint / Bandit の責務をどう分離するか
 
-**パターンAとの主な違い：**
-- rewardをハードラベル（argmax）に変換せず、**連続値のままフル活用**する
-- 動画クエリをfeatureとして入力に含めるため、**未知クエリへの転移**が可能
-- 動画間の相対的な優劣を学習するため、**ランキング精度が高い**
+本設計書は、実験用 notebook の説明ではなく、**最終的に Vertex AI Endpoint へデプロイ可能な v1 モデル仕様書**として扱う。
 
 ---
 
-## 2. データ構造
+## 2. 結論サマリ
 
-学習データの1行は「**1猫 × 1動画 × 1セッション**」の組み合わせ。
+v1 で採用するモデル方針は以下である。
 
-11本の動画を1匹の猫に見せると 11行 が生成される。これが基本ユニット。
+1. 猫の状態理解には Hugging Face 系の既存モデルを継続利用する
+2. それらの出力を中間特徴量ベクトルへ変換する
+3. 最終意思決定モデルとしては `LightGBM Regressor` を採用する
+4. Regressor は「猫状態特徴量 × 動画候補特徴量」から **予測報酬** を返す
+5. Vertex AI Endpoint は動画候補ごとの予測報酬配列を返す
+6. Backend はその配列に UCB を加算して最終テンプレートを選択する
 
-```
-cat_A × video_00 × session_1  →  reward: -0.12
-cat_A × video_01 × session_1  →  reward: +0.45
-cat_A × video_02 × session_1  →  reward: +0.03
-...
-cat_A × video_10 × session_1  →  reward: +0.31
-```
+重要な設計判断は以下である。
 
-| 変数 | 内容 |
-|------|------|
-| `cat_id` | 猫の識別子（グループ分割・CV用） |
-| `session_id` | セッションの識別子（1セッション = before撮影 → 動画視聴 → after撮影） |
-| `video_id` | 動画クエリID（0〜10） |
-| `before_features` | 猫状態特徴量ベクトル（セクション3.1参照） |
-| `video_features` | 動画クエリ特徴量ベクトル（セクション3.2参照） |
-| `reward` | 目的変数：動画視聴後の猫の状態変化スコア（セクション4参照） |
-| `human_label` | 人間によるアノテーションラベル（0/1、オプション） |
+- v1 では `LightGBM Ranker` を本番採用しない
+- v1 では動画特徴量は `video_id` の one-hot を採用する
+- v1 では ViTPose の意味特徴量は厳密な部位工学ではなく、安定して計算できる幾何圧縮特徴を使う
+- v1 では CLIP は「自然言語との類似度を返す意味特徴抽出器」として使う
+- v1 では LightGBM は Vertex AI Endpoint 側に統合し、Backend 側では UCB のみ行う
 
----
+現時点の正式実装前提は以下である。
 
-## 3. 特徴量設計
-
-### 3.1 猫状態特徴量（before）
-
-動画視聴**前**の猫画像から以下3モデルで抽出する。
-
-#### ① 顔感情スコア（3次元）
-
-| 特徴量名 | 内容 | 取得モデル |
-|---------|------|----------|
-| `emo_happy` | happy確率 | `semihdervis/cat-emotion-classifier` |
-| `emo_sad` | sad確率 | 同上 |
-| `emo_angry` | angry確率 | 同上 |
-
-#### ② ViTPose++ 姿勢角度（12次元）
-
-生のキーポイント座標（51次元）を意味ある角度・比率に圧縮する。
-変換ロジックの詳細は [セクション9](#9-vitposeキーポイント--角度特徴量への変換) 参照。
-
-| 特徴量名 | 内容 | 算出方法 |
-|---------|------|---------|
-| `pose_ear_left_angle` | 左耳の立ち角度 | 耳キーポイントの垂直方向角度 |
-| `pose_ear_right_angle` | 右耳の立ち角度 | 同上（右） |
-| `pose_ear_symmetry` | 両耳の非対称度 | 左右角度差の絶対値 |
-| `pose_tail_angle` | 尻尾の立ち上がり角度 | 尻尾根元〜先端の垂直角度 |
-| `pose_spine_curve` | 脊椎の丸まり度 | 首・背中・腰のキーポイントで計算した曲率 |
-| `pose_head_tilt` | 頭の傾き | 頭部と体軸のなす角度 |
-| `pose_body_compactness` | 体の丸まり・コンパクト度 | バウンディングボックスの縦横比 |
-| `pose_activity_score` | 活発度スコア | 主要キーポイントの信頼度加重平均 |
-| `pose_forepaw_spread` | 前足の開き具合 | 左右前足キーポイントの距離 |
-| `pose_hindpaw_spread` | 後足の開き具合 | 左右後足キーポイントの距離 |
-| `pose_nose_height` | 鼻の高さ（頭上げ具合） | 鼻キーポイントのy座標正規化値 |
-| `pose_keypoint_conf_mean` | 全キーポイントの平均信頼度 | 17点のconfidence平均 |
-
-#### ③ CLIPゼロショットスコア（8次元）
-
-カスタムプロンプトとの類似度スコア。プロンプト一覧は [セクション10](#10-clipプロンプト設計) 参照。
-
-| 特徴量名 | プロンプト |
-|---------|----------|
-| `clip_attentive` | `"a cat looking attentively at a screen"` |
-| `clip_relaxed` | `"a relaxed and calm cat"` |
-| `clip_stressed` | `"a stressed or anxious cat"` |
-| `clip_playful` | `"a playful and curious cat"` |
-| `clip_sleepy` | `"a sleepy or drowsy cat"` |
-| `clip_alert` | `"an alert cat with ears up"` |
-| `clip_content` | `"a content and comfortable cat"` |
-| `clip_bored` | `"a bored or disinterested cat"` |
+- Vertex AI Custom Endpoint は 1 コンテナで `emotion / pose / clip / Reward Regressor` を実行する
+- `meow` は optional とし、v1 では未入力時に `null` を許容する
+- Endpoint は `features`, `aux_labels`, `predicted_rewards` を返す
+- `features` の 23 次元キーは学習時と推論時で完全一致させる
+- `backend` は特徴量抽出を行わず、`predicted_rewards` に UCB を加算する
 
 ---
 
-### 3.2 動画クエリ特徴量
+## 3. 採用方針
 
-動画クエリをfeatureとして入力に含めることで、未知クエリへの転移と「どのクエリがどんな猫に向くか」のパターン学習を可能にする。
+### 3.1 なぜこの構成にするか
 
-#### 方式：CLIPテキストエンコーダーによるembedding
+今回のプロダクトでは、学習データがまだ小さい。
 
-11本のクエリテキストを `openai/clip-vit-base-patch32` のテキストエンコーダーで512次元のベクトルに変換し、PCAで16次元に圧縮する。
+- 猫数が少ない
+- 1 猫あたりのセッション数が少ない
+- 動画候補数に対してサンプル数が不足している
 
-```python
-from transformers import CLIPModel, CLIPTokenizer
-import torch
+この条件では、複雑な強化学習や大規模 end-to-end 学習を本番用 v1 として採用するのはリスクが高い。
 
-model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+一方で、以下は既に現実的である。
 
-QUERY_TEXTS = [
-    "playful yarn ball bouncing in sunlight",         # video_00
-    "colorful fish swimming in an aquarium",          # video_01
-    "bird flying slowly across a blue sky",           # video_02
-    "laser dot moving erratically on a floor",        # video_03
-    "rustling leaves and gentle wind in a forest",    # video_04
-    "small mouse running across a wooden floor",      # video_05
-    "butterflies floating in a flower garden",        # video_06
-    "dragonfly hovering near water surface",          # video_07
-    "feather wand swinging slowly back and forth",    # video_08
-    "bubbles floating upward in calm water",          # video_09
-    "crackling fireplace with soft flickering light", # video_10
-]
+- 既存の Hugging Face モデルで猫画像から安定した中間特徴を作る
+- その中間特徴に対して木系モデルで小規模学習する
+- 動画候補ごとのスコアを返す
+- Bandit の exploration は Backend 側で行う
 
-def get_query_embedding(text: str) -> torch.Tensor:
-    inputs = tokenizer(text, return_tensors="pt", padding=True)
-    with torch.no_grad():
-        embedding = model.get_text_features(**inputs)
-    return embedding / embedding.norm(dim=-1, keepdim=True)  # L2正規化
+これにより、
 
-# 事前に全11本のembeddingを計算・保存
-query_embeddings = {
-    i: get_query_embedding(text).squeeze().numpy()
-    for i, text in enumerate(QUERY_TEXTS)
-}
-```
+- 学習パイプラインが単純になる
+- 推論ロジックが説明可能になる
+- モデルのデバッグが容易になる
+- Vertex AI へのデプロイ構成が明快になる
 
-> **Note:** query_embeddingはPCAで16次元に圧縮する前提。圧縮後の次元数は検証で決定（TBD）。
+### 3.2 採用しないもの
+
+v1 では以下は本番採用しない。
+
+- REINFORCE などの方策勾配法
+- `LightGBM Ranker` 単独の本番採用
+- 動画クエリ埋め込み + PCA を必須とする構成
+- ViTPose キーポイントからの高度な解剖学的特徴量設計
+
+これらは v2 以降の改善候補とする。
 
 ---
 
-### 3.3 最終的な入力ベクトル
+## 4. システム全体におけるモデルの役割
 
-| グループ | 特徴量 | 次元数 |
-|---------|-------|-------|
-| 顔感情スコア（before） | `emo_*` × 3 | 3 |
-| 姿勢角度（before） | `pose_*` × 12 | 12 |
-| CLIPゼロショットスコア（before） | `clip_*` × 8 | 8 |
-| 動画クエリembedding | PCA圧縮後 | 16 |
-| **合計** | | **39次元** |
+モデル層の責務は「猫の現在状態を数値化し、各動画候補に対する予測報酬を返すこと」である。
+
+### 4.1 モデルの出力
+
+モデルが返すのは、最終テンプレート ID ではなく以下である。
+
+- 猫状態特徴量
+- 状態キー生成に使う補助ラベル
+- 各動画候補に対する `predicted_reward`
+
+### 4.2 最終選択はどこで行うか
+
+最終選択は Backend で行う。
+
+```
+predicted_reward(video_i)
+  + UCB_bonus(video_i)
+  = final_score(video_i)
+```
+
+これにより、モデルは exploitation、Backend は exploration を担当する。
+
+### 4.3 配置
+
+| コンポーネント | 役割 | 配置 |
+|---|---|---|
+| 猫特徴抽出モデル | 画像/音声から中間特徴量を作る | Vertex AI Endpoint |
+| Reward Regressor | 候補動画ごとの予測報酬を返す | Vertex AI Endpoint |
+| UCB Bandit | 探索ボーナスを加算する | Backend |
+| Gemini | テンプレートから動画プロンプト再構築 | Backend から Vertex AI API 呼び出し |
+| Veo | 動画生成 | Backend から Vertex AI API 呼び出し |
 
 ---
 
-## 4. 報酬設計
+## 5. 採用モデル一覧
 
-### 報酬の定義
+### 5.1 採用する Hugging Face / 既存モデル
 
-```
-reward(session) = score_after − score_before
-```
+| 用途 | モデル ID | 採用理由 | 備考 |
+|---|---|---|---|
+| 猫顔感情分類 | `semihdervis/cat-emotion-classifier` | 既存データ作成と整合しやすい | 実際の元ラベルは 7 クラス。v1 では `happy/sad/angry` を利用 |
+| 猫ポーズ推定 | `usyd-community/vitpose-plus-small` | 実際に読み込み可能な公開モデル | docs の旧記述 `plus-plus-small` は v1 実装では使わない |
+| ゼロショット意味特徴 | `openai/clip-vit-base-patch32` | 画像と自然言語の意味類似を数値化できる | 猫状態の補助特徴として利用 |
+| 猫鳴き声分類 | `IsolaHGVIS/Cat-Meow-Classification` | 音声入力がある場合の状態把握 | v1 では optional。`emotion / pose / clip` を優先して統合する |
 
-### スコア計算式
+### 5.2 最終予測モデル
 
-```python
-def compute_score(features: dict, weights: dict) -> float:
-    score = (
-        weights['w_happy']      * features['emo_happy']
-      - weights['w_sad']        * features['emo_sad']
-      - weights['w_angry']      * features['emo_angry']
-      + weights['w_activity']   * features['pose_activity_score']
-      + weights['w_attentive']  * features['clip_attentive']
-      - weights['w_stressed']   * features['clip_stressed']
-      - weights['w_bored']      * features['clip_bored']
-    )
-    return score
-```
-
-### デフォルト重み（初期値）
-
-| 重み | デフォルト値 | 説明 |
-|------|------------|------|
-| `w_happy` | 1.0 | happyは強くポジティブ |
-| `w_sad` | 0.8 | sadはネガティブ |
-| `w_angry` | 1.0 | angryは強くネガティブ |
-| `w_activity` | 0.5 | 活発度は中程度でポジティブ |
-| `w_attentive` | 0.8 | 画面注目はポジティブ |
-| `w_stressed` | 0.7 | ストレスはネガティブ |
-| `w_bored` | 0.6 | 退屈はネガティブ |
-
-> **重みの調整方針：** デフォルト値はヒューリスティックな初期値。人間によるアノテーション（`human_label`）と reward の相関を確認しながら調整する。最終的には Optuna 等でハイパーパラメータ最適化することも検討（TBD）。
-
-### rewardの値域
-
-| reward | 解釈 |
-|--------|------|
-| `> +0.3` | 明確にポジティブな反応（テンション上がった） |
-| `-0.1 〜 +0.3` | 中立・わずかな変化 |
-| `< -0.1` | ネガティブ or 無反応 |
+| 用途 | モデル | 採用理由 |
+|---|---|---|
+| 予測報酬算出 | `LightGBM Regressor` | 小規模データに強く、学習・保存・推論が軽量で、説明可能性が高い |
 
 ---
 
-## 5. 学習設計
+## 6. モデル理論
 
-### 5.1 アプローチ①：reward回帰（LightGBM Regressor）
+### 6.1 何を学習するか
 
-猫状態 × 動画クエリの組み合わせごとに reward を直接回帰予測する。
+v1 モデルが学習するのは以下の関数である。
 
 ```
-入力 X: (before_features + video_embedding) shape: (n_samples, 39)
-目的変数 y: reward shape: (n_samples,)  ← 連続値
+f(cat_state_features, video_candidate_features) -> predicted_reward
 ```
 
-```python
-import lightgbm as lgb
-from sklearn.model_selection import GroupKFold
+ここで、
 
-model = lgb.LGBMRegressor(
-    objective='regression',
-    metric='mae',
-    num_leaves=31,
-    learning_rate=0.05,
-    n_estimators=300,
-    min_child_samples=5,   # データ少量対策
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=42,
-)
-```
+- `cat_state_features` は猫の before 状態を表すベクトル
+- `video_candidate_features` は動画候補を表すベクトル
+- `predicted_reward` はその動画を見せたときに期待される状態改善量
 
-**評価指標：**
-- MAE（平均絶対誤差）：rewardの予測精度
-- Spearman相関係数：11本の動画を正しくランキングできているか
-- Top-1 Accuracy：予測best動画が真のbest動画と一致する割合
+### 6.2 なぜ分類ではなく回帰か
+
+分類にすると「どの動画が最良だったか」しか使えない。
+しかし今回のデータには、動画ごとの反応の強弱がある。
+
+例:
+
+- video-4: +0.66
+- video-5: +0.52
+- video-8: +0.23
+- video-10: -0.58
+
+これらを 1 位/それ以外 に潰すと情報を失う。
+そのため、v1 は reward の連続値をそのまま学習する回帰を採用する。
+
+### 6.3 なぜ Ranker ではなく Regressor か
+
+Ranker は理論的には魅力的だが、v1 時点では以下の理由で本番採用しない。
+
+- 現データ量では group 構成が弱い
+- relevance ラベル設計がまだ固まり切っていない
+- 動作検証時に train fit の影響を受けやすい
+- Backend 側に UCB があるため、Endpoint 側ではまず安定した報酬スコアを返す方がよい
+
+したがって、v1 は **Reward Regressor + Backend UCB** を正規構成とする。
 
 ---
 
-### 5.2 アプローチ②：Learning to Rank（LightGBM Ranker）
+## 7. 学習データ設計
 
-1匹の猫の1セッション（11行）を1グループとして、相対的なランキングを学習する。rewardの**絶対値ではなく順位関係**に特化して最適化する。
+### 7.1 基本単位
 
-```
-入力 X:     (before_features + video_embedding) shape: (n_samples, 39)
-目的変数 y: rewardを順位に変換したrank score shape: (n_samples,)
-groups:     1セッション = 11行 のグループサイズ配列
-```
-
-```python
-import lightgbm as lgb
-import numpy as np
-
-# rewardを0〜10の整数ランクに変換（同一セッション内で相対ランク付け）
-def reward_to_rank(rewards_in_session: np.ndarray) -> np.ndarray:
-    # 降順ランク（rewardが高い動画ほど高ランク）
-    return rewards_in_session.argsort().argsort()
-
-model = lgb.LGBMRanker(
-    objective='lambdarank',
-    metric='ndcg',
-    ndcg_eval_at=[1, 3],   # NDCG@1, NDCG@3 で評価
-    num_leaves=31,
-    learning_rate=0.05,
-    n_estimators=300,
-    min_child_samples=5,
-    random_state=42,
-)
-
-model.fit(
-    X_train,
-    y_rank_train,
-    group=group_sizes_train,         # 各セッションのサイズ（11固定）
-    eval_set=[(X_val, y_rank_val)],
-    eval_group=[group_sizes_val],
-    callbacks=[lgb.early_stopping(50), lgb.log_evaluation(50)],
-)
-```
-
-**評価指標：**
-- NDCG@1：最良の動画を1位に選べているか
-- NDCG@3：上位3本の質
-- Top-1 Accuracy（参考値）
-
----
-
-### 5.3 採用アプローチの選定基準
-
-| 条件 | 採用アプローチ |
-|------|-------------|
-| データ量が少ない（< 100セッション） | アプローチ①（Regressor）を優先。Rankerはグループ数が少ないと不安定。 |
-| データ量が十分（≥ 100セッション） | アプローチ②（Ranker）を優先。相対ランキング精度が高い。 |
-| 両方検証可能な場合 | NDCG@1とTop-1 Accuracyで比較し、高い方を本番採用。 |
-
-> **初期方針：** まずアプローチ①で動くモデルを作り、データが積み上がったタイミングでアプローチ②に移行・比較する。
-
----
-
-## 6. 検証設計
-
-### Leave-one-cat-out Cross Validation
-
-データが少ない状況での汎化性評価に最も適した方法。特定の猫でのみ学習し、別の猫で評価することで、「見たことのない猫にも機能するか」を検証する。
-
-```python
-from sklearn.model_selection import GroupKFold
-import numpy as np
-
-cat_ids = df['cat_id'].values
-gkf = GroupKFold(n_splits=len(np.unique(cat_ids)))  # 猫の数 = fold数
-
-results = []
-for fold, (train_idx, val_idx) in enumerate(gkf.split(X, y, groups=cat_ids)):
-    X_train, X_val = X[train_idx], X[val_idx]
-    y_train, y_val = y[train_idx], y[val_idx]
-    
-    model.fit(X_train, y_train)
-    
-    # セッション単位でTop-1 Accuracyを評価
-    for session_id in df.loc[val_idx, 'session_id'].unique():
-        mask = df.loc[val_idx, 'session_id'] == session_id
-        scores = model.predict(X_val[mask])
-        pred_best = np.argmax(scores)
-        true_best = np.argmax(y_val[mask])
-        results.append({'fold': fold, 'correct': int(pred_best == true_best)})
-
-top1_acc = np.mean([r['correct'] for r in results])
-print(f"Leave-one-cat-out Top-1 Accuracy: {top1_acc:.3f}")
-```
-
-### 評価指標サマリー
-
-| 指標 | 計算対象 | 目標値（目安） |
-|------|---------|-------------|
-| Top-1 Accuracy | セッション単位：予測1位 = 真の1位 | > 0.4（11クラスランダムは0.09） |
-| Top-3 Accuracy | セッション単位：真の1位が予測上位3位以内 | > 0.7 |
-| NDCG@1 | セッション単位（Rankerのみ） | > 0.6 |
-| Spearman相関 | セッション内の動画ランキング順位相関 | > 0.3 |
-| MAE | rewardの予測誤差（Regressorのみ） | データ分布に依存 |
-
----
-
-## 7. 推論フロー
-
-実際のnekkoflixでの使われ方に沿ったエンドツーエンドの推論手順。
+学習データの 1 行は以下である。
 
 ```
-Step 1: before画像を受け取る
-         ↓
-Step 2: 3モデルで特徴量抽出
-         emotion_probs  = cat_emotion_model(image)      # 3次元
-         keypoints      = vitpose_model(image)           # 51次元
-         pose_angles    = compute_angles(keypoints)      # 12次元
-         clip_scores    = clip_model(image, PROMPTS)     # 8次元
-         before_vec     = concat([emotion_probs, pose_angles, clip_scores])  # 23次元
-         ↓
-Step 3: 全11クエリを総当たりでスコアリング
-         scores = []
-         for video_id in range(11):
-             x = concat([before_vec, query_embeddings[video_id]])  # 39次元
-             scores.append(model.predict(x))
-         ↓
-Step 4: 最高スコアのクエリIDを返す
-         best_id  = argmax(scores)         # ハード出力（1本）
-         top3_ids = argsort(scores)[-3:]   # ソフト出力（上位3本）
-         ↓
-Step 5: Geminiに投げる
-         gemini_input = {
-             "template": QUERY_TEXTS[best_id],
-             "cat_state": state_key,
-             "user_context": user_context,  # オーナーが設定した猫の好み・性格
-         }
+1 猫 × 1 動画候補 × 1 セッション
 ```
 
-### 出力形式まとめ
+### 7.2 セッション定義
 
-| 出力 | 形式 | 用途 |
-|------|------|------|
-| `best_id` | int（0〜10） | Bandit層・Geminiへの入力（1本決定） |
-| `top3_ids` | list[int] | Geminiに候補を複数渡す場合 |
-| `scores` | list[float]（11次元） | Banditテーブルの更新・探索に使う場合 |
+1 セッションとは次を指す。
 
----
+1. before 画像を取得
+2. ある動画候補を見せる
+3. after 画像を取得
+4. before / after の差から reward を計算
 
-## 8. JSONデータ構造とパイプライン実装
-
-### 8.1 学習データのJSON構造
+### 7.3 v1 の教師データ構造
 
 ```json
 {
-  "session_id": "s001",
-  "cat_id": "cat_A",
-  "video_id": 3,
+  "session_id": "kurochan_video-4",
+  "cat_id": "kurochan",
+  "video_id": "video-4",
   "before": {
-    "emotion": [0.72, 0.15, 0.13],
-    "pose_angles": [12.3, 45.1, 8.7, 33.2, 0.82, 15.4, 0.67, 0.91, 28.3, 22.1, 0.44, 0.88],
-    "clip_scores": [0.81, 0.34, 0.22, 0.71, 0.12, 0.65, 0.55, 0.18]
+    "emotion_happy": 0.12,
+    "emotion_sad": 0.21,
+    "emotion_angry": 0.05,
+    "pose_area_ratio": 0.33,
+    "clip_attentive_cat": 0.27
   },
   "after": {
-    "emotion": [0.88, 0.07, 0.05],
-    "pose_angles": [25.4, 72.3, 15.2, 41.0, 0.90, 20.1, 0.74, 0.94, 35.6, 30.0, 0.51, 0.93],
-    "clip_scores": [0.91, 0.21, 0.18, 0.80, 0.09, 0.74, 0.63, 0.11]
+    "emotion_happy": 0.38,
+    "emotion_sad": 0.08,
+    "emotion_angry": 0.03,
+    "pose_area_ratio": 0.41,
+    "clip_attentive_cat": 0.44
   },
-  "reward": 0.43,
-  "human_label": 1
+  "reward": 0.66
 }
 ```
 
-### 8.2 特徴量抽出パイプライン
+### 7.4 学習データソース
 
-```python
-from transformers import (
-    pipeline,
-    AutoImageProcessor,
-    VitPoseForPoseEstimation,
-    CLIPModel,
-    CLIPProcessor,
-)
-from PIL import Image
-import torch
-import numpy as np
+v1 では以下を正解データの元とする。
 
-# モデルのロード（起動時に1回）
-emotion_pipeline = pipeline(
-    "image-classification",
-    model="semihdervis/cat-emotion-classifier"
-)
+- `fixed_train_data/video-*/<cat_name>/before.png`
+- `fixed_train_data/video-*/<cat_name>/after.png`
+- `feature_cache/image_feature_cache.json`
 
-vitpose_processor = AutoImageProcessor.from_pretrained(
-    "usyd-community/vitpose-plus-plus-small"
-)
-vitpose_model = VitPoseForPoseEstimation.from_pretrained(
-    "usyd-community/vitpose-plus-plus-small"
-)
+---
 
-clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+## 8. 特徴量設計
 
-CLIP_PROMPTS = [
-    "a cat looking attentively at a screen",
-    "a relaxed and calm cat",
-    "a stressed or anxious cat",
-    "a playful and curious cat",
-    "a sleepy or drowsy cat",
-    "an alert cat with ears up",
-    "a content and comfortable cat",
-    "a bored or disinterested cat",
+v1 で最終的に LightGBM に入力する特徴量は、以下の 2 系統を連結したものとする。
+
+1. 猫状態特徴量
+2. 動画候補特徴量
+
+### 8.1 猫状態特徴量
+
+#### 8.1.1 感情分類特徴量: 3 次元
+
+| 特徴量名 | 内容 |
+|---|---|
+| `emotion_happy` | 顔感情モデルの happy スコア |
+| `emotion_sad` | 顔感情モデルの sad スコア |
+| `emotion_angry` | 顔感情モデルの angry スコア |
+
+補足:
+
+- 元モデルは 7 クラス出力を持つ
+- v1 では `Happy / Sad / Angry` を抽出して使う
+- 他ラベルは現時点では捨てる
+
+#### 8.1.2 ViTPose 圧縮特徴量: 12 次元
+
+v1 では厳密な解剖学的特徴量ではなく、キーポイントの幾何学的広がりを使う。
+
+| 特徴量名 | 意味 |
+|---|---|
+| `pose_mean_confidence` | キーポイント検出信頼度の平均 |
+| `pose_x_span` | x 方向の広がり |
+| `pose_y_span` | y 方向の広がり |
+| `pose_area_ratio` | 全体の広がり面積 |
+| `pose_centroid_x` | 重心 x |
+| `pose_centroid_y` | 重心 y |
+| `pose_pc1_variance` | 主成分 1 の分散 |
+| `pose_pc2_variance` | 主成分 2 の分散 |
+| `pose_pc_ratio` | 主成分分散比 |
+| `pose_principal_angle_sin` | 主方向角の sin |
+| `pose_principal_angle_cos` | 主方向角の cos |
+| `pose_compactness` | 密集度 |
+
+この設計を採る理由:
+
+- 少量データでも安定して計算しやすい
+- 部位ごとの厳密な対応に依存しない
+- Vertex AI Endpoint 実装に落とし込みやすい
+
+#### 8.1.3 CLIP 類似度特徴量: 8 次元
+
+CLIP は画像そのものを最終分類するために使うのではなく、**自然言語ラベルとの意味類似度を数値特徴量として抽出するため**に使う。
+
+v1 で採用するプロンプトは以下とする。
+
+| 特徴量名 | プロンプト |
+|---|---|
+| `clip_attentive_cat` | `"attentive cat"` |
+| `clip_relaxed_cat` | `"relaxed cat"` |
+| `clip_stressed_cat` | `"stressed cat"` |
+| `clip_playful_cat` | `"playful cat"` |
+| `clip_sleepy_cat` | `"sleepy cat"` |
+| `clip_curious_cat` | `"curious cat"` |
+| `clip_alert_cat` | `"alert cat"` |
+| `clip_comfortable_cat` | `"comfortable cat"` |
+
+### 8.2 猫状態特徴量の合計次元
+
+```
+3 + 12 + 8 = 23 次元
+```
+
+### 8.3 動画候補特徴量
+
+v1 では動画候補は `video_id` の one-hot で表す。
+
+例:
+
+- `video-1`
+- `video-2`
+- ...
+- `video-10`
+
+10 本の動画候補がある場合、
+
+```
+video_feature_dim = 10
+```
+
+### 8.4 なぜ one-hot を採用するか
+
+本来は動画クエリのテキスト埋め込みを使う案もある。
+ただし v1 では以下を優先する。
+
+- 学習対象を安定させる
+- デプロイ時の依存を減らす
+- 学習時と推論時の feature order を単純化する
+
+そのため、動画特徴量は v1 では one-hot とする。
+
+### 8.5 最終入力ベクトル
+
+動画候補数が 10 本の場合:
+
+```
+cat_state_features (23)
++ video_onehot (10)
+= 33 次元
+```
+
+動画候補数が 11 本の場合:
+
+```
+23 + 11 = 34 次元
+```
+
+### 8.6 特徴量の並び順
+
+推論時に学習時と同じ列順が必須であるため、学習成果物と一緒に feature list を保存する。
+
+例:
+
+```json
+[
+  "before_emotion_happy",
+  "before_emotion_sad",
+  "before_emotion_angry",
+  "before_pose_mean_confidence",
+  "...",
+  "video_video-1",
+  "video_video-2",
+  "...",
+  "video_video-10"
 ]
-
-
-def extract_emotion(image: Image.Image) -> list[float]:
-    results = emotion_pipeline(image)
-    label_map = {"happy": 0, "sad": 1, "angry": 2}
-    probs = [0.0, 0.0, 0.0]
-    for r in results:
-        idx = label_map.get(r["label"].lower())
-        if idx is not None:
-            probs[idx] = r["score"]
-    return probs  # [p_happy, p_sad, p_angry]
-
-
-def extract_pose_angles(image: Image.Image) -> list[float]:
-    inputs = vitpose_processor(images=image, return_tensors="pt")
-    with torch.no_grad():
-        outputs = vitpose_model(**inputs, dataset_index=torch.tensor([3]))
-    keypoints = outputs.keypoints[0].numpy()  # shape: (17, 3) = (x, y, conf)
-    return compute_angles(keypoints)           # 12次元に圧縮（セクション9参照）
-
-
-def extract_clip_scores(image: Image.Image) -> list[float]:
-    inputs = clip_processor(
-        text=CLIP_PROMPTS,
-        images=image,
-        return_tensors="pt",
-        padding=True,
-    )
-    with torch.no_grad():
-        outputs = clip_model(**inputs)
-    logits = outputs.logits_per_image[0]
-    scores = logits.softmax(dim=-1).tolist()
-    return scores  # 8次元
-
-
-def extract_features(image_path: str) -> dict:
-    image = Image.open(image_path).convert("RGB")
-    return {
-        "emotion":     extract_emotion(image),
-        "pose_angles": extract_pose_angles(image),
-        "clip_scores": extract_clip_scores(image),
-    }
-
-
-def compute_reward(before: dict, after: dict, weights: dict = None) -> float:
-    if weights is None:
-        weights = {
-            "w_happy": 1.0, "w_sad": 0.8, "w_angry": 1.0,
-            "w_activity": 0.5, "w_attentive": 0.8,
-            "w_stressed": 0.7, "w_bored": 0.6,
-        }
-
-    def score(f):
-        return (
-            weights["w_happy"]     * f["emotion"][0]
-          - weights["w_sad"]       * f["emotion"][1]
-          - weights["w_angry"]     * f["emotion"][2]
-          + weights["w_activity"]  * f["pose_angles"][7]   # pose_activity_score
-          + weights["w_attentive"] * f["clip_scores"][0]   # clip_attentive
-          - weights["w_stressed"]  * f["clip_scores"][2]   # clip_stressed
-          - weights["w_bored"]     * f["clip_scores"][7]   # clip_bored
-        )
-
-    return score(after) - score(before)
 ```
 
-### 8.3 DataFrameへの変換
+---
+
+## 9. CLIP 類似度特徴の意味と扱い
+
+### 9.1 CLIP は何を返しているか
+
+CLIP は画像とテキストを同一意味空間へ写像する。
+このため、猫画像と各テキストプロンプトの近さをスコア化できる。
+
+例:
+
+```json
+{
+  "clip_attentive_cat": 0.31,
+  "clip_relaxed_cat": 0.05,
+  "clip_stressed_cat": 0.22,
+  "clip_playful_cat": 0.14
+}
+```
+
+これは「その画像の猫がどの意味ラベルに近いか」を表している。
+
+### 9.2 CLIP をどう解釈するか
+
+CLIP 類似度は以下の補助的意味特徴として扱う。
+
+- attentive: 画面への注目
+- relaxed: 落ち着き
+- stressed: 緊張・不快
+- playful: 遊びたい雰囲気
+- sleepy: 眠そう
+- curious: 興味・探索性
+- alert: 反応準備状態
+- comfortable: 心地よさ
+
+### 9.3 CLIP は最終判定モデルではない
+
+重要なのは、CLIP は最終的な reward 予測器ではないこと。
+
+CLIP はあくまで:
+
+- 意味ラベルの近さを数値化する
+- 感情分類やポーズでは拾いにくい状態を補う
+- LightGBM Regressor に与える説明変数を増やす
+
+ための中間特徴抽出器である。
+
+### 9.4 将来拡張
+
+将来的には以下を追加可能である。
+
+- `"bored cat"`
+- `"interested in moving object"`
+- `"cat staring at a screen"`
+- `"cat avoiding the screen"`
+
+ただし v1 ではまず 8 プロンプトに固定する。
+
+---
+
+## 10. 報酬設計
+
+### 10.1 基本式
+
+報酬は before / after の状態差で定義する。
+
+```
+reward = score_after - score_before
+```
+
+### 10.2 score の定義
+
+v1 では、特徴量から次のヒューリスティックな状態スコアを作る。
 
 ```python
-import pandas as pd
-import json
-
-FEATURE_COLS = (
-    ["emo_happy", "emo_sad", "emo_angry"]
-    + [f"pose_{i}" for i in range(12)]
-    + [f"clip_{i}" for i in range(8)]
-    + [f"query_emb_{i}" for i in range(16)]  # PCA圧縮後
+score = (
+    1.0 * emotion_happy
+  - 0.7 * emotion_sad
+  - 1.0 * emotion_angry
+  + 0.4 * pose_area_ratio
+  + 0.2 * pose_pc1_variance
+  + 0.5 * clip_attentive_cat
+  + 0.3 * clip_alert_cat
+  + 0.2 * clip_playful_cat
 )
-
-
-def session_to_rows(session: dict, query_embeddings_pca: dict) -> list[dict]:
-    """1セッションのJSONを、全11動画分の行リストに展開する"""
-    before = session["before"]
-    base_vec = (
-        before["emotion"]
-        + before["pose_angles"]
-        + before["clip_scores"]
-    )
-    rows = []
-    for video_id in range(11):
-        query_emb = query_embeddings_pca[video_id].tolist()
-        row = {
-            "session_id": session["session_id"],
-            "cat_id":     session["cat_id"],
-            "video_id":   video_id,
-            "reward":     session["reward"] if session["video_id"] == video_id else None,
-        }
-        # ※ rewardはそのsessionで実際に見せた動画のみ記録されているため、
-        #    未実測の動画はNoneとし、学習データから除外する
-        feat = dict(zip(FEATURE_COLS, base_vec + query_emb))
-        row.update(feat)
-        rows.append(row)
-    return [r for r in rows if r["reward"] is not None]
-
-
-def build_dataframe(sessions: list[dict], query_embeddings_pca: dict) -> pd.DataFrame:
-    all_rows = []
-    for s in sessions:
-        all_rows.extend(session_to_rows(s, query_embeddings_pca))
-    return pd.DataFrame(all_rows)
 ```
+
+### 10.3 なぜこの報酬設計にするか
+
+この設計は完全な動物行動学モデルではないが、v1 では以下のメリットがある。
+
+- 現在の特徴量から安定して計算可能
+- before / after の差分を素直に使える
+- 学習データ生成を簡素化できる
+
+### 10.4 将来的な改善余地
+
+v2 以降では以下を検討する。
+
+- `clip_stressed_cat` を負特徴として明示追加
+- `clip_bored` 系プロンプトの導入
+- 人間アノテーションを含む reward 補正
+- Optuna などによる重み最適化
 
 ---
 
-## 9. ViTPoseキーポイント → 角度特徴量への変換
+## 11. 学習設計
 
-AP-10K headのキーポイント定義（17点）から12次元の角度特徴量を計算する。
-
-```
-AP-10K 17キーポイント定義（猫）:
- 0: 鼻 (nose)
- 1: 左目 (left_eye)
- 2: 右目 (right_eye)
- 3: 左耳根元 (left_ear_base)
- 4: 右耳根元 (right_ear_base)
- 5: 左肩 (left_shoulder)
- 6: 右肩 (right_shoulder)
- 7: 左前足首 (left_front_paw)
- 8: 右前足首 (right_front_paw)
- 9: 腰左 (left_hip)
-10: 腰右 (right_hip)
-11: 左後足首 (left_rear_paw)
-12: 右後足首 (right_rear_paw)
-13: 尻尾根元 (tail_base)
-14: 尻尾中間 (tail_mid)
-15: 尻尾先端 (tail_tip)
-16: 背中中央 (spine_mid)
-```
+### 11.1 採用学習器
 
 ```python
-import numpy as np
+LightGBM Regressor
+```
 
-def compute_angles(kp: np.ndarray) -> list[float]:
-    """
-    kp: shape (17, 3) = (x, y, confidence)
-    returns: 12次元の角度・比率特徴量
-    """
-    def angle_from_vertical(p1, p2):
-        """2点を結ぶベクトルと垂直軸のなす角度（度）"""
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        return np.degrees(np.arctan2(abs(dx), abs(dy) + 1e-6))
+### 11.2 学習入出力
 
-    def dist(p1, p2):
-        return np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+```
+X = concat(before_features, video_onehot)
+y = reward
+```
 
-    nose, l_eye, r_eye = kp[0], kp[1], kp[2]
-    l_ear, r_ear = kp[3], kp[4]
-    l_sho, r_sho = kp[5], kp[6]
-    l_fpaw, r_fpaw = kp[7], kp[8]
-    l_hip, r_hip = kp[9], kp[10]
-    l_rpaw, r_rpaw = kp[11], kp[12]
-    tail_base, tail_mid, tail_tip = kp[13], kp[14], kp[15]
-    spine_mid = kp[16]
+### 11.3 学習パラメータの考え方
 
-    body_center = (l_sho + r_sho + l_hip + r_hip) / 4
+データ量が少ないため、木の複雑さは抑える。
 
-    # 1. 左耳の立ち角度
-    ear_left_angle  = angle_from_vertical(l_ear, nose)
-    # 2. 右耳の立ち角度
-    ear_right_angle = angle_from_vertical(r_ear, nose)
-    # 3. 耳の非対称度
-    ear_symmetry    = abs(ear_left_angle - ear_right_angle)
-    # 4. 尻尾の立ち上がり角度
-    tail_angle      = angle_from_vertical(tail_base, tail_tip)
-    # 5. 脊椎の丸まり度（鼻→背中→尻尾の曲率）
-    spine_curve     = angle_from_vertical(nose, spine_mid) + angle_from_vertical(spine_mid, tail_base)
-    # 6. 頭の傾き（体軸に対する頭の角度）
-    head_tilt       = angle_from_vertical(body_center[:2], nose[:2])
-    # 7. 体のコンパクト度（縦横比）
-    body_h = abs(nose[1] - tail_base[1]) + 1e-6
-    body_w = dist(l_sho, r_sho) + 1e-6
-    body_compactness = body_w / body_h
-    # 8. 活発度スコア（キーポイント信頼度の加重平均）
-    activity_score  = float(np.mean(kp[:, 2]))
-    # 9. 前足の開き具合
-    forepaw_spread  = dist(l_fpaw, r_fpaw) / (body_w + 1e-6)
-    # 10. 後足の開き具合
-    hindpaw_spread  = dist(l_rpaw, r_rpaw) / (body_w + 1e-6)
-    # 11. 鼻の高さ（頭上げ具合、y座標を正規化）
-    nose_height     = float((body_center[1] - nose[1]) / (body_h + 1e-6))
-    # 12. 全キーポイントの平均信頼度
-    kp_conf_mean    = float(np.mean(kp[:, 2]))
+代表例:
 
-    return [
-        ear_left_angle, ear_right_angle, ear_symmetry,
-        tail_angle, spine_curve, head_tilt,
-        body_compactness, activity_score,
-        forepaw_spread, hindpaw_spread,
-        nose_height, kp_conf_mean,
-    ]
+```python
+LGBMRegressor(
+    objective="regression",
+    n_estimators=300,
+    learning_rate=0.03,
+    num_leaves=7,
+    min_data_in_leaf=1,
+    min_data_in_bin=1,
+    max_depth=3,
+    random_state=42,
+)
+```
+
+### 11.4 評価方針
+
+v1 では以下を分けて扱う。
+
+- 学習器の fitting 確認
+- 猫単位の汎化性能確認
+
+評価設計:
+
+- `GroupKFold` で `cat_name` 単位に分割
+- MAE
+- Spearman correlation
+- 推奨動画 top-k の妥当性確認
+
+### 11.5 Ranker を使わない理由
+
+`LightGBM Ranker` は研究候補として保持するが、v1 本番モデルには採用しない。
+
+理由:
+
+- relevance ラベルの向き定義が繊細
+- データ量が少なく不安定
+- Backend に UCB があるため、まずは回帰スコアがあれば十分
+
+---
+
+## 12. 推論設計
+
+### 12.1 推論の全体像
+
+1 回の推論では 1 枚の猫画像と 0 or 1 個の音声を受ける。
+
+Endpoint 内では以下を行う。
+
+1. 画像から emotion / pose / clip 特徴を抽出
+2. 必要なら音声から meow ラベルを抽出
+3. `cat_state_features` を作成
+4. 全動画候補に対して one-hot を順番に付与
+5. 各候補について Regressor で `predicted_reward` を計算
+6. 結果配列を Backend へ返す
+
+責務の分割は以下で固定する。
+
+- `model/`: base64 画像を受け取り、実モデルで `emotion / pose / clip` 特徴量を抽出する
+- `model/`: `candidate_video_ids` ごとに Regressor を走らせて `predicted_rewards` を返す
+- `backend/`: `predicted_rewards` を受け取り UCB を加算して最終選択する
+
+### 12.2 推論アルゴリズム
+
+```python
+cat_features = extract_cat_features(image, audio)
+
+predicted_rewards = []
+for video_id in candidate_video_ids:
+    x = concat(cat_features, one_hot(video_id))
+    r = regressor.predict(x)
+    predicted_rewards.append(r)
+
+return predicted_rewards
+```
+
+### 12.3 Endpoint が返すべきもの
+
+Endpoint は少なくとも以下を返す。
+
+- `features`
+- `predicted_rewards`
+- `aux_labels`
+
+`aux_labels` の例:
+
+- dominant emotion
+- meow label
+- clip top label
+
+これにより Backend は状態キーを組み立てやすくなる。
+
+---
+
+## 13. デプロイ設計
+
+### 13.1 どこへデプロイするか
+
+デプロイ先は **Vertex AI Custom Endpoint** である。
+
+構成:
+
+- `model/` ディレクトリをコンテナ化
+- Artifact Registry へ push
+- `script/deploy_model_endpoint.py` で Model Registry / Endpoint へ登録
+
+### 13.2 Endpoint に含めるもの
+
+Vertex AI Endpoint コンテナには以下を含める。
+
+- emotion モデル
+- pose モデル
+- CLIP モデル
+- 必要なら meow モデル
+- 学習済み LightGBM Regressor
+- feature order 定義ファイル
+- video candidate 定義
+
+### 13.3 Endpoint に含めないもの
+
+以下は Endpoint に含めない。
+
+- UCB Bandit
+- Firestore アクセス
+- Gemini 呼び出し
+- Veo 呼び出し
+
+これらは Backend の責務である。
+
+### 13.4 なぜ統合 Endpoint にするか
+
+以下のためである。
+
+- 猫特徴抽出と reward 回帰を同一プロセスで完結できる
+- Backend から 1 リクエストで必要なスコアを取得できる
+- 推論レイテンシを抑えやすい
+
+### 13.5 Endpoint の返却値と Backend の関係
+
+Endpoint:
+
+```json
+{
+  "predicted_rewards": {
+    "video-1": -0.12,
+    "video-2": 0.44,
+    "video-3": 0.08
+  }
+}
+```
+
+Backend:
+
+```python
+final_score = predicted_reward + ucb_bonus
+selected_video = argmax(final_score)
 ```
 
 ---
 
-## 10. CLIPプロンプト設計
+## 14. 入出力スキーマ
 
-### 採用プロンプト一覧
+### 14.1 Endpoint 入力
 
-| インデックス | プロンプト | 狙い |
-|------------|----------|------|
-| 0 | `"a cat looking attentively at a screen"` | 画面への注目度（最重要） |
-| 1 | `"a relaxed and calm cat"` | リラックス度 |
-| 2 | `"a stressed or anxious cat"` | ストレス・不安（ネガティブ） |
-| 3 | `"a playful and curious cat"` | 好奇心・遊び心 |
-| 4 | `"a sleepy or drowsy cat"` | 眠気・無関心 |
-| 5 | `"an alert cat with ears up"` | 警戒・注意（中立〜ポジティブ） |
-| 6 | `"a content and comfortable cat"` | 満足・快適 |
-| 7 | `"a bored or disinterested cat"` | 退屈・無関心（ネガティブ） |
+```json
+{
+  "image_base64": "<base64>",
+  "audio_base64": "<base64 or null>",
+  "candidate_video_ids": [
+    "video-1",
+    "video-2",
+    "video-3",
+    "video-4",
+    "video-5",
+    "video-6",
+    "video-7",
+    "video-8",
+    "video-9",
+    "video-10"
+  ]
+}
+```
 
-### プロンプト選定の方針
+### 14.2 Endpoint 出力
 
-- **before/after 両方**に同じプロンプトを適用し、差分（delta）を報酬計算に使う
-- プロンプトは定期的に見直す（TBD：検証後に追加・削除を検討）
-- 体験モードでの「あなたが猫」設定にも同プロンプトを流用する
+```json
+{
+  "features": {
+    "emotion_happy": 0.18,
+    "emotion_sad": 0.11,
+    "emotion_angry": 0.05,
+    "pose_area_ratio": 0.39,
+    "clip_attentive_cat": 0.28
+  },
+  "aux_labels": {
+    "emotion_label": "happy",
+    "clip_top_label": "attentive_cat",
+    "meow_label": "waiting_for_food"
+  },
+  "predicted_rewards": {
+    "video-1": -0.22,
+    "video-2": 0.31,
+    "video-3": 0.05,
+    "video-4": 0.42,
+    "video-5": 0.37,
+    "video-6": 0.28,
+    "video-7": -0.03,
+    "video-8": 0.16,
+    "video-9": 0.21,
+    "video-10": -0.44
+  }
+}
+```
+
+### 14.3 Backend 側の利用
+
+Backend はこのレスポンスを受けて:
+
+- `state_key` を組み立てる
+- Firestore の bandit_table を読む
+- `predicted_rewards + UCB_bonus` で最終選択する
 
 ---
 
-## 11. 未決定事項（TBD）
+## 15. 学習成果物
 
-| # | 項目 | 内容 | 優先度 |
-|---|------|------|-------|
-| TBD-1 | rewardの重み最適化 | w1〜w7のチューニング方法（Optunaによる自動最適化 vs 手動調整） | 高 |
-| TBD-2 | アプローチ①②の切り替え判断 | データ量が何セッションを超えたらRankerに移行するか | 高 |
-| TBD-3 | query embeddingのPCA次元数 | 16次元が妥当かどうかを分散説明率で検証 | 中 |
-| TBD-4 | AP-10Kキーポイント定義の確認 | 実際のモデル出力でのキーポイントIDとインデックスの対応を実機確認 | 高 |
-| TBD-5 | 未実測動画の扱い | 1セッションで見せなかった動画のrewardの補完方法（除外 vs 補間） | 中 |
-| TBD-6 | rewardのNone処理 | 全動画分のrewardが揃わない場合のDataFrame構築方法 | 中 |
-| TBD-7 | CLIPプロンプトの検証 | 実際の猫画像に対してプロンプトが期待通りに機能するか確認 | 高 |
+学習後に保存すべき成果物は以下。
+
+| ファイル | 内容 |
+|---|---|
+| `reward_regressor.joblib` | 学習済み LightGBM Regressor |
+| `feature_columns.json` | 学習時の特徴量順序 |
+| `video_id_mapping.json` | 動画候補一覧 |
+| `training_metadata.json` | 学習日時、データ件数、使用モデル ID、reward 設計 |
+| `clip_prompts.json` | 使用した CLIP プロンプト |
+
+### 15.1 なぜ feature_columns を保存するか
+
+LightGBM は列順がズレると推論結果が壊れる。
+そのため、学習時と同じ順序を必ず再現できるようにする。
+
+### 15.2 metadata に含めるべき内容
+
+```json
+{
+  "version": "v1",
+  "emotion_model_id": "semihdervis/cat-emotion-classifier",
+  "pose_model_id": "usyd-community/vitpose-plus-small",
+  "clip_model_id": "openai/clip-vit-base-patch32",
+  "regressor_type": "lightgbm_regressor",
+  "candidate_video_count": 10,
+  "reward_formula_version": "reward_v1"
+}
+```
+
+---
+
+## 16. 実装責務の分割
+
+### 16.1 `tea-pillar-ML-analysis` 側
+
+責務:
+
+- 正解データ整形
+- 特徴量キャッシュ生成
+- 学習 notebook / script
+- モデル評価
+- 学習済み成果物出力
+
+### 16.2 `tea-pillar` 側 `model/`
+
+責務:
+
+- Vertex AI で動く predictor 実装
+- 学習済み成果物のロード
+- 推論 API 実装
+- Docker 化
+
+### 16.3 `tea-pillar` 側 `backend/`
+
+責務:
+
+- Endpoint 呼び出し
+- UCB
+- Firestore
+- Gemini / Veo
+- API レスポンス
+
+---
+
+## 17. 開発・検証フロー
+
+### 17.1 学習フロー
+
+1. `fixed_train_data` を準備
+2. `precompute_image_features.py` で特徴量 JSON を作る
+3. `pattern_b_reward_ranking.ipynb` 相当の学習処理で Regressor を学習
+4. 学習済み成果物を保存
+
+### 17.2 デプロイフロー
+
+1. 学習済み成果物を `model/artifacts/` に配置
+2. `model/Dockerfile` で Vertex AI 推論コンテナをビルド
+3. Artifact Registry へ push
+4. `script/deploy_model_endpoint.py` で Endpoint へデプロイ
+5. `script/test_endpoint.py` で動作確認
+
+補足:
+
+- `tea-pillar` 側では `scripts/deploy_ML/export_pattern_b_artifacts.py` を用意しており、
+  `pattern_b/session_feature_table.csv` から `reward_regressor.joblib` と各種 JSON を
+  `model/artifacts/` へ出力できる状態にしている
+- `model/` は現在 `/predict`, `/health` を持つ FastAPI app 構成で実装されている
+
+### 17.3 推奨する検証項目
+
+- 1 リクエストで全動画候補分の reward が返ること
+- 学習時と同じ feature order で推論できること
+- image_base64 が同じなら再現性のある予測になること
+- 主要動画候補のスコア順が期待と大きく矛盾しないこと
+- `reward_regressor.joblib` 読み込み時に fallback へ落ちていないこと
+
+---
+
+## 18. v1 の制約と既知のズレ
+
+### 18.1 docs 上の旧記述との差分
+
+v1 では以下を採用する。
+
+- ViTPose: `usyd-community/vitpose-plus-small`
+- 最終モデル: `LightGBM Regressor`
+- 動画特徴量: one-hot
+- CLIP: 8 プロンプト固定
+
+したがって、旧案である以下とは異なる。
+
+- `vitpose-plus-plus-small`
+- LightGBM Ranker 本番採用
+- 動画クエリ埋め込み + PCA を必須化
+- 高度な pose 工学特徴
+
+### 18.2 学習データ量の制約
+
+現状は猫数・セッション数が少ないため、
+
+- 汎化性能はまだ高くない
+- まずは PoC / デモ向けの v1 として扱う
+- 継続的に追加データで再学習する前提とする
+
+### 18.3 音声特徴の扱い
+
+v1 学習は画像中心で進めている。
+音声モデルは将来的に `cat_state_features` へ統合する前提だが、初期デプロイでは optional とする。
+
+---
+
+## 19. 今後の拡張方針
+
+### 19.1 v2 の有力候補
+
+- 動画特徴量を one-hot から CLIP テキスト埋め込みへ移行
+- `LightGBM Ranker` を比較再評価
+- 人手ラベルを使った reward 補正
+- pose 特徴量の意味的再設計
+- meow 特徴量の本格統合
+
+### 19.2 それでも v1 を先に出す理由
+
+v1 は以下を満たしている。
+
+- 既存 HF モデル群と整合
+- 学習済み成果物を保存・再利用しやすい
+- Vertex AI Endpoint へ実際に載せやすい
+- Backend の UCB 設計と矛盾しない
+
+したがって、**この v1 設計をベースにまずデプロイを成立させ、その後に段階的改善を行う**ことを推奨する。

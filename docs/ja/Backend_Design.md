@@ -2,11 +2,36 @@
 
 | 項目 | 内容 |
 |------|------|
-| ドキュメントバージョン | v1.1 |
+| ドキュメントバージョン | v2.0 |
 | 作成日 | 2026-03-19 |
 | ステータス | Draft |
-| 対応基本設計書 | docs/ja/BasicDesign.md v1.1 |
-| 準拠ドキュメント | docs/ja/IMPLEMENTATION.md |
+| 対応基本設計書 | docs/ja/High_Level_Design.md v2.0 |
+| 準拠ドキュメント | docs/ja/MODELING.md v1 |
+
+---
+
+## v2.0 更新メモ
+
+本ドキュメントには旧設計時点の `LightGBM Ranker` 前提記述が一部残っている。Phase 0 時点での正式前提は以下とする。
+
+- Custom Endpoint の最終予測器は `LightGBM Regressor`
+- Endpoint 出力は `features + aux_labels + predicted_rewards`
+- 動画候補は `video-1` から `video-10`
+- Backend は `predicted_rewards + UCB bonus` で最終テンプレートを選択する
+- 状態キーは `{meow_label or unknown}_{emotion_label}_{clip_top_label}` を採用する
+- `backend` は `emotion / pose / clip / meow / regressor` を持たず、Vertex AI Custom Endpoint の結果のみを利用する
+
+詳細な差分と後続実装の正本は以下を参照する。
+
+- `docs/_internal/Phase0_Endpoint_Contract.md`
+- `docs/_internal/Phase0_Templates_Seed_Spec.md`
+- `docs/_internal/Phase0_Backend_Design_Diff.md`
+
+### 現時点の責務境界
+
+- `backend`: Endpoint 呼び出し、状態キー生成、UCB、Gemini、Veo、Firestore
+- `model`: `emotion / pose / clip` 特徴抽出、optional な `meow`、Reward Regressor
+- `backend` は特徴量抽出ロジックを持たない
 
 ---
 
