@@ -66,7 +66,14 @@ class GenerateOrchestrator:
             audio_base64=request.audio_base64,
             user_context=request.user_context,
         )
-        logger.info("generate_start", session_id=ctx.session_id, mode=ctx.mode)
+        logger.info(
+            "generate_start",
+            session_id=ctx.session_id,
+            mode=ctx.mode,
+            has_audio=ctx.audio_base64 is not None,
+            has_user_context=ctx.user_context is not None,
+            candidate_count=len(self._settings.default_candidate_video_ids),
+        )
 
         try:
             await self._firestore.create_session(ctx=ctx)
@@ -75,16 +82,45 @@ class GenerateOrchestrator:
                 audio_base64=ctx.audio_base64,
                 candidate_video_ids=self._settings.default_candidate_video_ids,
             )
+            logger.info(
+                "cat_features_ready",
+                session_id=ctx.session_id,
+                emotion_label=ctx.cat_features.emotion_label,
+                clip_top_label=ctx.cat_features.clip_top_label,
+                meow_label=ctx.cat_features.meow_label or "unknown",
+                predicted_reward_count=len(ctx.cat_features.predicted_rewards),
+            )
             ctx.state_key = self._state_key_builder.build(features=ctx.cat_features)
+            logger.info(
+                "state_key_ready",
+                session_id=ctx.session_id,
+                state_key=ctx.state_key,
+            )
             ctx.bandit_selection = await self._bandit.select(
                 state_key=ctx.state_key,
                 predicted_rewards=ctx.cat_features.predicted_rewards,
+            )
+            logger.info(
+                "bandit_selection_ready",
+                session_id=ctx.session_id,
+                state_key=ctx.state_key,
+                template_id=ctx.bandit_selection.template_id,
+                template_name=ctx.bandit_selection.template_name,
+                predicted_reward=ctx.bandit_selection.predicted_reward,
+                ucb_bonus=ctx.bandit_selection.ucb_bonus,
+                final_score=ctx.bandit_selection.final_score,
             )
             ctx.generated_prompt = await self._gemini.generate_prompt(
                 template_text=ctx.bandit_selection.prompt_text,
                 cat_features=ctx.cat_features,
                 state_key=ctx.state_key,
                 user_context=ctx.user_context,
+            )
+            logger.info(
+                "prompt_ready",
+                session_id=ctx.session_id,
+                template_id=ctx.bandit_selection.template_id,
+                prompt_length=len(ctx.generated_prompt),
             )
             ctx.video_gcs_uri = await self._veo.generate(prompt=ctx.generated_prompt)
             ctx.video_signed_url = self._signed_url_generator.generate(
@@ -101,8 +137,24 @@ class GenerateOrchestrator:
             VeoGenerationError,
             VeoTimeoutError,
         ) as exc:
+            logger.error(
+                "generate_failed",
+                session_id=ctx.session_id,
+                state_key=ctx.state_key,
+                template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else None,
+                error_code=exc.error_code,
+                detail=exc.detail,
+            )
             await self._safely_fail_session(ctx=ctx, exc=exc)
             raise
+
+        logger.info(
+            "generate_completed",
+            session_id=ctx.session_id,
+            state_key=ctx.state_key,
+            template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else None,
+            video_gcs_uri=ctx.video_gcs_uri,
+        )
 
         return GenerateResponse(
             session_id=ctx.session_id,
@@ -122,6 +174,11 @@ class GenerateOrchestrator:
             await self._firestore.fail_session(
                 ctx=ctx,
                 error_msg=exc.detail or str(exc),
+            )
+            logger.info(
+                "session_marked_failed",
+                session_id=ctx.session_id,
+                error_code=exc.error_code,
             )
         except FirestoreError:
             logger.error(

@@ -57,7 +57,12 @@ class VeoClient:
         except GoogleAPICallError as exc:
             raise VeoGenerationError(detail=str(exc)) from exc
 
-        logger.info("veo_generation_started", model=self._settings.veo_model)
+        logger.info(
+            "veo_generation_started",
+            model=self._settings.veo_model,
+            prompt_length=len(prompt),
+            operation_name=operation.operation.name,
+        )
         return await self._poll_until_done(operation_name=operation.operation.name)
 
     async def _poll_until_done(self, operation_name: str) -> str:
@@ -77,7 +82,14 @@ class VeoClient:
             if operation.done:
                 if operation.error.code != 0:
                     raise VeoGenerationError(detail=operation.error.message)
-                return self._extract_gcs_uri(operation.response.value)
+                gcs_uri = self._extract_gcs_uri(operation.response.value)
+                logger.info(
+                    "veo_generation_completed",
+                    operation_name=operation_name,
+                    elapsed_seconds=int(elapsed),
+                    gcs_uri=gcs_uri,
+                )
+                return gcs_uri
 
             logger.debug(
                 "veo_polling",
