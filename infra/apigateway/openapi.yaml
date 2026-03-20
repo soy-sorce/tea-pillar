@@ -30,8 +30,6 @@ paths:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
         deadline: 360.0
-      security:
-        - google_id_token: []
       parameters:
         - in: body
           name: body
@@ -65,8 +63,6 @@ paths:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
         deadline: 30.0
-      security:
-        - google_id_token: []
       parameters:
         - in: body
           name: body
@@ -96,14 +92,6 @@ paths:
           description: Internal error
           schema:
             $ref: "#/definitions/ErrorResponse"
-securityDefinitions:
-  google_id_token:
-    authorizationUrl: ""
-    flow: "implicit"
-    type: "oauth2"
-    x-google-issuer: "${jwt_issuer}"
-    x-google-jwks_uri: "${jwt_jwks_uri}"
-    x-google-audiences: "${jwt_audience}"
 definitions:
   GenerateRequest:
     type: object
