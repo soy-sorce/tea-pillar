@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg_grad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#002918" />
+      <stop offset="100%" stop-color="#00120A" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" rx="40" fill="url(#bg_grad)"/>
+  
+  <circle cx="50" cy="85" r="19" fill="#00331D" stroke="#00FF88" stroke-width="3"/>
+  <circle cx="83" cy="55" r="19" fill="#00331D" stroke="#00FF88" stroke-width="3"/>
+  <circle cx="117" cy="55" r="19" fill="#00331D" stroke="#00FF88" stroke-width="3"/>
+  <circle cx="150" cy="85" r="19" fill="#00331D" stroke="#00FF88" stroke-width="3"/>
+
+  <ellipse cx="100" cy="125" rx="45" ry="38" fill="#004D2C" fill-opacity="0.5" stroke="#00FF88" stroke-width="4"/>
+  
+  <path d="M91 110 L119 125 L91 140 Z" fill="#00FF88" opacity="0.3"/>
+  <path d="M93 113 L116 125 L93 137 Z" fill="#E6FFFA" stroke="#E6FFFA" stroke-width="2" stroke-linejoin="round"/>
+</svg>
