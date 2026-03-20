@@ -18,12 +18,29 @@ from src.routers import feedback, generate, health
 logger = structlog.get_logger(__name__)
 
 FRONTEND_ORIGIN = "https://video-gen4cat-frontend-94553428765.asia-northeast1.run.app"
+FORCED_LOG_LEVEL = "DEBUG"
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
-    configure_logging(log_level=settings.log_level)
+    configure_logging(log_level=FORCED_LOG_LEVEL)
+    logger.info(
+        "app_startup_config",
+        environment=settings.environment,
+        log_level=FORCED_LOG_LEVEL,
+        gcp_project_id=settings.gcp_project_id,
+        gcp_region=settings.gcp_region,
+        vertex_endpoint_location=settings.vertex_endpoint_location,
+    )
+    logger.debug(
+        "app_startup_config_detail",
+        vertex_endpoint_id=settings.vertex_endpoint_id,
+        gcs_bucket_name=settings.gcs_bucket_name,
+        firestore_database_id=settings.firestore_database_id,
+        gemini_model=settings.gemini_model,
+        veo_model=settings.veo_model,
+    )
 
     app = FastAPI(
         title="nekkoflix API",
@@ -72,6 +89,7 @@ def create_app() -> FastAPI:
             path=request.url.path,
             error_code=exc.error_code,
             message=exc.message,
+            detail=exc.detail,
         )
         return JSONResponse(
             status_code=exc.status_code,
