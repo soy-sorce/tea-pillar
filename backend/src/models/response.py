@@ -29,6 +29,14 @@ class HealthResponse(BaseModel):
     environment: str = Field(...)
 
 
+class RootResponse(BaseModel):
+    """GET / response."""
+
+    service: str = Field(...)
+    status: Literal["ok"] = "ok"
+    environment: str = Field(...)
+
+
 class ErrorResponse(BaseModel):
     """Error response body."""
 

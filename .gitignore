@@ -80,3 +80,14 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+
+###
+# Terraform
+###
+
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example

@@ -1,6 +1,8 @@
 """Firestore client wrapper."""
 
 import uuid
+from collections.abc import Mapping
+from typing import Any, Self, cast
 
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
 from google.cloud import firestore
@@ -20,13 +22,13 @@ _COL_FEEDBACKS = "feedbacks"
 class FirestoreClient:
     """Centralized Firestore data access."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self: Self, settings: Settings) -> None:
         self._db: AsyncClient = firestore.AsyncClient(
             project=settings.gcp_project_id or None,
             database=settings.firestore_database_id,
         )
 
-    async def create_session(self, ctx: GenerationContext) -> None:
+    async def create_session(self: Self, ctx: GenerationContext) -> None:
         """Insert a generating session document."""
         document = {
             "session_id": ctx.session_id,
@@ -43,7 +45,7 @@ class FirestoreClient:
                 detail=str(exc),
             ) from exc
 
-    async def complete_session(self, ctx: GenerationContext) -> None:
+    async def complete_session(self: Self, ctx: GenerationContext) -> None:
         """Update a session to done."""
         update = {
             "status": "done",
@@ -60,7 +62,7 @@ class FirestoreClient:
                 detail=str(exc),
             ) from exc
 
-    async def fail_session(self, ctx: GenerationContext, error_msg: str) -> None:
+    async def fail_session(self: Self, ctx: GenerationContext, error_msg: str) -> None:
         """Update a session to failed."""
         update = {
             "status": "failed",
@@ -75,7 +77,7 @@ class FirestoreClient:
                 detail=str(exc),
             ) from exc
 
-    async def get_session(self, session_id: str) -> SessionDocument:
+    async def get_session(self: Self, session_id: str) -> SessionDocument:
         """Fetch a session by ID."""
         try:
             snapshot = await self._db.collection(_COL_SESSIONS).document(session_id).get()
@@ -90,10 +92,10 @@ class FirestoreClient:
                 message="セッションが見つかりません",
                 detail=f"session_id={session_id}",
             )
-        return SessionDocument(**snapshot.to_dict())
+        return SessionDocument(**self._require_snapshot_dict(snapshot.to_dict(), session_id))
 
     async def get_bandit_entries_by_state_key(
-        self,
+        self: Self,
         state_key: str,
     ) -> dict[str, BanditTableDocument]:
         """Fetch all bandit entries for a state key."""
@@ -103,7 +105,7 @@ class FirestoreClient:
             )
             entries: dict[str, BanditTableDocument] = {}
             async for snapshot in stream:
-                entry = BanditTableDocument(**snapshot.to_dict())
+                entry = BanditTableDocument(**self._require_snapshot_dict(snapshot.to_dict()))
                 entries[entry.template_id] = entry
             return entries
         except (DeadlineExceeded, GoogleAPICallError, RetryError) as exc:
@@ -113,7 +115,7 @@ class FirestoreClient:
             ) from exc
 
     async def update_bandit_entry(
-        self,
+        self: Self,
         template_id: str,
         state_key: str,
         reward: float,
@@ -122,13 +124,13 @@ class FirestoreClient:
         document_id = f"{state_key}__{template_id}"
         document_ref = self._db.collection(_COL_BANDIT_TABLE).document(document_id)
 
-        @firestore.async_transactional  # type: ignore[untyped-decorator]
+        @firestore.async_transactional
         async def update_in_transaction(
             transaction: firestore.AsyncTransaction,
         ) -> None:
             snapshot = await document_ref.get(transaction=transaction)
             if snapshot.exists:
-                data = snapshot.to_dict()
+                data = self._require_snapshot_dict(snapshot.to_dict(), document_id)
                 selection_count = int(data["selection_count"]) + 1
                 cumulative_reward = float(data["cumulative_reward"]) + reward
             else:
@@ -156,11 +158,14 @@ class FirestoreClient:
                 detail=str(exc),
             ) from exc
 
-    async def get_active_templates(self) -> list[TemplateDocument]:
+    async def get_active_templates(self: Self) -> list[TemplateDocument]:
         """Return active templates ordered by template_id."""
         try:
             stream = self._db.collection(_COL_TEMPLATES).where("is_active", "==", True).stream()
-            templates = [TemplateDocument(**snapshot.to_dict()) async for snapshot in stream]
+            templates = [
+                TemplateDocument(**self._require_snapshot_dict(snapshot.to_dict()))
+                async for snapshot in stream
+            ]
         except (DeadlineExceeded, GoogleAPICallError, RetryError) as exc:
             raise FirestoreError(
                 message="テンプレート一覧の取得に失敗しました",
@@ -170,7 +175,7 @@ class FirestoreClient:
         return sorted(templates, key=lambda template: template.template_id)
 
     async def save_feedback(
-        self,
+        self: Self,
         session_id: str,
         template_id: str,
         reaction: str,
@@ -193,3 +198,16 @@ class FirestoreClient:
                 message="フィードバックの保存に失敗しました",
                 detail=str(exc),
             ) from exc
+
+    def _require_snapshot_dict(
+        self: Self,
+        data: dict[str, Any] | None,
+        document_hint: str = "unknown",
+    ) -> Mapping[str, Any]:
+        """Normalize Firestore snapshot payloads to a mapping."""
+        if data is None:
+            raise FirestoreError(
+                message="Firestore ドキュメントの内容が不正です",
+                detail=f"document={document_hint}",
+            )
+        return cast(Mapping[str, Any], data)
