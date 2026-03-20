@@ -20,7 +20,7 @@ const router = createBrowserRouter([
   },
 ]);
 
-export function App(): JSX.Element {
+export function App(): React.JSX.Element {
   return (
     <GenerationContextProvider>
       <RouterProvider router={router} />

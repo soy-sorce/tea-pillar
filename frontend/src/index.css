@@ -2,12 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-/* カスタムアニメーション */
+/* グローバルリセット & ベース */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #FAFAF8;
+    color: #1C1C1A;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* アニメーション遅延ユーティリティ */
 @layer utilities {
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+
   .delay-150 {
     animation-delay: 150ms;
   }
+
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+
   .delay-300 {
     animation-delay: 300ms;
   }
+
+  .delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .delay-700 {
+    animation-delay: 700ms;
+  }
+
+  /* ガラスモーフィズム */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* テキストグラデーション */
+  .text-gradient {
+    background: linear-gradient(135deg, #4D8C6F 0%, #3A6E56 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ページ遷移フェードイン */
+main>* {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 円形ローディングプログレス */
+.progress-ring {
+  transition: stroke-dashoffset 0.5s ease;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
 }

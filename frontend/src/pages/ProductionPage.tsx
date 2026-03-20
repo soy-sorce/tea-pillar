@@ -1,13 +1,92 @@
 // src/pages/ProductionPage.tsx
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Upload, Music, ImageIcon, FileText, Wand2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGenerate } from "@/hooks/useGenerate";
 import { fileToBase64 } from "@/lib/imageUtils";
 import { blobToBase64 } from "@/lib/audioUtils";
 
-export function ProductionPage(): JSX.Element {
+interface DropZoneProps {
+    label: string;
+    sublabel?: string;
+    required?: boolean;
+    file: File | null;
+    accept: string;
+    icon: React.ReactNode;
+    onFile: (file: File) => void;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+function DropZone({ label, sublabel, required, file, accept, icon, onFile, inputRef }: DropZoneProps): React.JSX.Element {
+    const [isDragging, setIsDragging] = useState(false);
+
+    return (
+        <div>
+            <div className="mb-2 flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-text-primary">{label}</span>
+                {required ? (
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-500">必須</span>
+                ) : (
+                    <span className="rounded-full bg-surface-alt px-2 py-0.5 text-xs text-text-muted">任意</span>
+                )}
+            </div>
+
+            <div
+                className={[
+                    "relative flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-3 rounded-card-lg border-2 border-dashed p-6 text-center transition-all duration-200",
+                    file
+                        ? "border-accent bg-accent-light"
+                        : isDragging
+                            ? "border-accent bg-accent-light scale-[1.01]"
+                            : "border-border bg-surface hover:border-accent hover:bg-accent-light/50",
+                ].join(" ")}
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const f = e.dataTransfer.files[0];
+                    if (f) onFile(f);
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") inputRef.current?.click(); }}
+            >
+                {file ? (
+                    <>
+                        <CheckCircle2 size={32} className="text-accent" />
+                        <span className="text-sm font-medium text-accent">{file.name}</span>
+                        <span className="text-xs text-text-muted">クリックして変更</span>
+                    </>
+                ) : (
+                    <>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-alt text-text-muted">
+                            {icon}
+                        </div>
+                        <div>
+                            <span className="text-sm font-medium text-text-secondary">ファイルを選択またはドロップ</span>
+                            {sublabel && <p className="mt-0.5 text-xs text-text-muted">{sublabel}</p>}
+                        </div>
+                        <Upload size={14} className="text-text-muted" />
+                    </>
+                )}
+            </div>
+
+            <input
+                ref={inputRef}
+                type="file"
+                accept={accept}
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+            />
+        </div>
+    );
+}
+
+export function ProductionPage(): React.JSX.Element {
     const navigate = useNavigate();
     const { generate, isLoading } = useGenerate();
 
@@ -22,10 +101,8 @@ export function ProductionPage(): JSX.Element {
 
     const handleSubmit = async (): Promise<void> => {
         if (!canSubmit || !imageFile) return;
-
         const imageBase64 = await fileToBase64(imageFile);
         const audioBase64 = audioFile ? await blobToBase64(audioFile) : undefined;
-
         await generate({
             mode: "production",
             image_base64: imageBase64,
@@ -35,137 +112,90 @@ export function ProductionPage(): JSX.Element {
     };
 
     return (
-        <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
-            <PageHeader
-                title="猫のデータを入力"
-                onBack={() => void navigate("/")}
-            />
+        <div className="mx-auto max-w-2xl py-6">
+            <div className="px-4">
+                <PageHeader
+                    title="猫のデータを入力"
+                    subtitle="音声・画像ファイルをアップロードして動画を生成"
+                    onBack={() => void navigate("/")}
+                />
+            </div>
 
-            {/* 音声ファイルアップロード */}
-            <section aria-labelledby="audio-upload-label">
-                <label
-                    id="audio-upload-label"
-                    className="mb-2 block text-sm font-medium text-text-primary"
-                >
-                    🎵 鳴き声ファイル（.wav）
-                    <span className="ml-1 text-xs text-text-muted">（任意）</span>
-                </label>
-                <div
-                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed border-border p-6 text-center transition-colors hover:border-accent hover:bg-accent-light"
-                    onClick={() => audioInputRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        const file = e.dataTransfer.files[0];
-                        if (file?.type.includes("audio")) setAudioFile(file);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="音声ファイルを選択またはドロップ"
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") audioInputRef.current?.click();
-                    }}
-                >
-                    <span className="text-2xl">🎤</span>
-                    <span className="text-sm text-text-secondary">
-                        {audioFile ? audioFile.name : "ファイルを選択 or ドロップ"}
-                    </span>
-                    <span className="text-xs text-text-muted">.wav 形式</span>
+            <div className="mt-6 space-y-5 px-4 pb-36">
+                {/* ドロップゾーン群をカード内に */}
+                <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card space-y-6">
+                    <DropZone
+                        label="鳴き声ファイル"
+                        sublabel=".wav 形式"
+                        file={audioFile}
+                        accept="audio/wav,.wav"
+                        icon={<Music size={22} />}
+                        onFile={setAudioFile}
+                        inputRef={audioInputRef}
+                    />
+                    <div className="border-t border-border" />
+                    <DropZone
+                        label="顔・全身写真"
+                        sublabel=".jpg / .png 形式"
+                        required
+                        file={imageFile}
+                        accept="image/jpeg,image/png,.jpg,.png"
+                        icon={<ImageIcon size={22} />}
+                        onFile={setImageFile}
+                        inputRef={imageInputRef}
+                    />
                 </div>
-                <input
-                    ref={audioInputRef}
-                    type="file"
-                    accept="audio/wav,.wav"
-                    className="hidden"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setAudioFile(file);
-                    }}
-                />
-            </section>
 
-            {/* 画像ファイルアップロード */}
-            <section aria-labelledby="image-upload-label">
-                <label
-                    id="image-upload-label"
-                    className="mb-2 block text-sm font-medium text-text-primary"
-                >
-                    📸 顔・全身写真（.jpg / .png）
-                    <span className="ml-1 text-xs text-red-500">（必須）</span>
-                </label>
-                <div
-                    className={[
-                        "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed p-6 text-center transition-colors",
-                        imageFile
-                            ? "border-accent bg-accent-light"
-                            : "border-border hover:border-accent hover:bg-accent-light",
-                    ].join(" ")}
-                    onClick={() => imageInputRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        const file = e.dataTransfer.files[0];
-                        if (file?.type.startsWith("image/")) setImageFile(file);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="画像ファイルを選択またはドロップ"
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") imageInputRef.current?.click();
-                    }}
-                >
-                    <span className="text-2xl">{imageFile ? "✅" : "🖼️"}</span>
-                    <span className="text-sm text-text-secondary">
-                        {imageFile ? imageFile.name : "ファイルを選択 or ドロップ"}
-                    </span>
-                    <span className="text-xs text-text-muted">.jpg / .png 形式</span>
+                {/* コンテキスト入力カード */}
+                <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card">
+                    <div className="mb-3 flex items-center gap-2">
+                        <FileText size={16} className="text-text-secondary" />
+                        <label
+                            htmlFor="user-context-input"
+                            className="text-sm font-semibold text-text-primary"
+                        >
+                            猫の性格・好み
+                        </label>
+                        <span className="rounded-full bg-surface-alt px-2 py-0.5 text-xs text-text-muted">
+                            任意・最大500文字
+                        </span>
+                    </div>
+                    <textarea
+                        id="user-context-input"
+                        value={userContext}
+                        onChange={(e) => setUserContext(e.target.value)}
+                        maxLength={500}
+                        rows={4}
+                        placeholder="例：魚が好き、臆病な性格、外を眺めるのが趣味"
+                        className="w-full resize-none rounded-card border border-border bg-surface-alt px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-colors focus:border-accent focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                    <p className="mt-1 text-right text-xs text-text-muted">
+                        {userContext.length} / 500
+                    </p>
                 </div>
-                <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,.jpg,.png"
-                    className="hidden"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setImageFile(file);
-                    }}
-                />
-            </section>
+            </div>
 
-            {/* コンテキスト入力 */}
-            <section aria-labelledby="context-label">
-                <label
-                    id="context-label"
-                    htmlFor="user-context-input"
-                    className="mb-2 block text-sm font-medium text-text-primary"
-                >
-                    🐱 猫の性格・好み
-                    <span className="ml-1 text-xs text-text-muted">（任意・最大500文字）</span>
-                </label>
-                <textarea
-                    id="user-context-input"
-                    value={userContext}
-                    onChange={(e) => setUserContext(e.target.value)}
-                    maxLength={500}
-                    rows={4}
-                    placeholder="例：魚が好き、臆病な性格、外を眺めるのが趣味"
-                    className="w-full rounded-card border border-border bg-surface-alt px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent resize-none"
-                />
-                <p className="mt-1 text-right text-xs text-text-muted">
-                    {userContext.length}/500
-                </p>
-            </section>
-
-            <Button
-                id="btn-generate-production"
-                variant="primary"
-                size="lg"
-                disabled={!canSubmit || isLoading}
-                onClick={() => void handleSubmit()}
-                className="w-full"
-            >
-                {isLoading ? "生成中..." : "🎬 動画を生成する"}
-            </Button>
+            {/* スティッキー生成ボタン */}
+            <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-surface/90 px-4 py-4 backdrop-blur-md">
+                <div className="mx-auto max-w-2xl">
+                    <Button
+                        id="btn-generate-production"
+                        variant="primary"
+                        size="lg"
+                        disabled={!canSubmit || isLoading}
+                        onClick={() => void handleSubmit()}
+                        className="w-full"
+                        leftIcon={<Wand2 size={18} />}
+                    >
+                        {isLoading ? "AIが生成しています..." : "動画を生成する"}
+                    </Button>
+                    {!canSubmit && (
+                        <p className="mt-2 text-center text-xs text-text-muted">
+                            写真ファイルは必須です
+                        </p>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

@@ -1,6 +1,7 @@
 // src/pages/ResultPage.tsx
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { useGenerationContext } from "@/contexts/GenerationContext";
 import { LoadingScreen } from "@/components/result/LoadingScreen";
 import { VideoPlayer } from "@/components/result/VideoPlayer";
@@ -8,7 +9,7 @@ import { FeedbackButtons } from "@/components/result/FeedbackButtons";
 import { ErrorScreen } from "@/components/result/ErrorScreen";
 import { Button } from "@/components/ui/Button";
 
-export function ResultPage(): JSX.Element {
+export function ResultPage(): React.JSX.Element {
     const navigate = useNavigate();
     const { resultState, response, errorCode, errorMessage, reset } =
         useGenerationContext();
@@ -31,15 +32,22 @@ export function ResultPage(): JSX.Element {
 
     if (resultState === "done" && response) {
         return (
-            <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+            <div className="mx-auto max-w-2xl px-4 py-8 space-y-8 animate-fadeIn">
+                {/* 動画プレーヤー */}
                 <VideoPlayer src={response.video_url} />
 
-                <FeedbackButtons sessionId={response.session_id} />
+                {/* 区切り */}
+                <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card">
+                    <FeedbackButtons sessionId={response.session_id} />
+                </div>
 
+                {/* もう一度ボタン */}
                 <div className="text-center">
                     <Button
                         id="btn-retry"
-                        variant="text"
+                        variant="ghost"
+                        size="md"
+                        leftIcon={<RefreshCw size={15} />}
                         onClick={() => {
                             reset();
                             void navigate("/");

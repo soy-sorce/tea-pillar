@@ -5,13 +5,18 @@ const BASE_URL = (import.meta.env.VITE_BACKEND_URL as string) ?? "";
 const TIMEOUT_MS = 360_000; // 360秒
 
 export class ApiError extends Error {
+    errorCode: string;
+    status: number;
+
     constructor(
-        public readonly errorCode: string,
+        errorCode: string,
         message: string,
-        public readonly status: number
+        status: number
     ) {
         super(message);
         this.name = "ApiError";
+        this.errorCode = errorCode;
+        this.status = status;
     }
 }
 

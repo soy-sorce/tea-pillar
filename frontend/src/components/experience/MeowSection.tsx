@@ -1,5 +1,6 @@
 // src/components/experience/MeowSection.tsx
 import { useState } from "react";
+import { Music } from "lucide-react";
 import { SampleCard } from "./SampleCard";
 import { MicButton } from "./MicButton";
 import { useMicrophone } from "@/hooks/useMicrophone";
@@ -19,67 +20,61 @@ export function MeowSection({
     onSelect,
     onAudioCapture,
     onToast,
-}: MeowSectionProps): JSX.Element {
+}: MeowSectionProps): React.JSX.Element {
     const [inputMode, setInputMode] = useState<"A" | "B">("A");
-    const { isRecording, audioBase64, startRecording, stopRecording, error } =
-        useMicrophone();
+    const { isRecording, audioBase64, startRecording, stopRecording, error } = useMicrophone();
 
-    // エラー発生時にAモードへフォールバック
     const handleMicStart = async (): Promise<void> => {
         await startRecording();
         if (error) {
-            onToast(
-                "マイクが使用できませんでした。サンプル選択に切り替えます",
-                "error"
-            );
+            onToast("マイクが使用できませんでした。サンプル選択に切り替えます", "error");
             setInputMode("A");
         }
     };
 
-    const handleMicStop = (): void => {
-        stopRecording();
-    };
-
-    // 録音完了後にBase64を親へ渡す
-    const prevBase64 = selectedAudioBase64;
-    if (audioBase64 && audioBase64 !== prevBase64 && inputMode === "B") {
+    if (audioBase64 && audioBase64 !== selectedAudioBase64 && inputMode === "B") {
         onAudioCapture(audioBase64);
     }
 
     return (
         <section aria-labelledby="meow-section-title">
-            <h2
-                id="meow-section-title"
-                className="mb-3 text-lg font-medium text-text-primary"
-            >
-                Step 1 🎵 鳴き声
-            </h2>
+            <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-light">
+                    <Music size={16} className="text-accent" />
+                </div>
+                <h2 id="meow-section-title" className="font-semibold text-text-primary">
+                    鳴き声を選ぶ
+                </h2>
+            </div>
 
-            {/* サンプル選択カード（方法A） */}
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-3 gap-3 mb-4">
                 {MEOW_SAMPLES.map((sample) => (
                     <SampleCard
                         key={sample.id}
                         emoji={sample.emoji}
                         label={sample.label}
                         selected={inputMode === "A" && selected?.id === sample.id}
-                        onClick={() => {
-                            setInputMode("A");
-                            onSelect(sample);
-                        }}
+                        onClick={() => { setInputMode("A"); onSelect(sample); }}
                     />
                 ))}
             </div>
 
-            {/* マイクボタン（方法B） */}
             <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-text-muted">または</span>
+                <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
                 <MicButton
                     isRecording={isRecording}
-                    onStart={handleMicStart}
-                    onStop={handleMicStop}
+                    onStart={() => void handleMicStart()}
+                    onStop={stopRecording}
                 />
                 {inputMode === "B" && audioBase64 && (
-                    <span className="text-xs text-accent font-medium">✓ 録音済み</span>
+                    <span className="flex items-center gap-1 text-xs text-accent font-semibold">
+                        ✓ 録音済み
+                    </span>
                 )}
             </div>
         </section>

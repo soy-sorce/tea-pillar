@@ -1,6 +1,7 @@
 // src/pages/ExperiencePage.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MeowSection } from "@/components/experience/MeowSection";
@@ -10,36 +11,49 @@ import { useGenerate } from "@/hooks/useGenerate";
 import { useToast } from "@/hooks/useToast";
 import { audioUrlToBase64 } from "@/lib/audioUtils";
 import { urlToBase64 } from "@/lib/imageUtils";
-import type { MeowSample, PersonalityType, PhotoSample } from "@/types/app";
+import type { MeowSample, PhotoSample } from "@/types/app";
 
-export function ExperiencePage(): JSX.Element {
+interface StepCardProps {
+    step: number;
+    children: React.ReactNode;
+}
+
+function StepCard({ step, children }: StepCardProps): React.JSX.Element {
+    return (
+        <div className="relative rounded-card-lg border border-border bg-surface p-6 shadow-card">
+            {/* ステップバッジ */}
+            <div className="absolute -top-3.5 left-6">
+                <span className="inline-flex items-center rounded-full bg-gradient-btn px-3 py-1 text-xs font-bold text-white shadow-btn-primary">
+                    STEP {step}
+                </span>
+            </div>
+            <div className="mt-3">{children}</div>
+        </div>
+    );
+}
+
+export function ExperiencePage(): React.JSX.Element {
     const navigate = useNavigate();
     const { generate, isLoading } = useGenerate();
     const { showToast } = useToast();
 
-    // サンプル選択状態（方法A）
+    // Step1: 鳴き声（サンプル選択 or マイク録音）
     const [selectedMeow, setSelectedMeow] = useState<MeowSample | null>(null);
+    const [capturedAudioBase64, setCapturedAudioBase64] = useState<string | null>(null);
+
+    // Step2: 写真（3択サンプル画像から選択）
     const [selectedPhoto, setSelectedPhoto] = useState<PhotoSample | null>(null);
-    const [selectedPersonality, setSelectedPersonality] =
-        useState<PersonalityType | null>(null);
 
-    // デバイス入力状態（方法B）
-    const [capturedAudioBase64, setCapturedAudioBase64] = useState<string | null>(
-        null
-    );
-    const [capturedImageBase64, setCapturedImageBase64] = useState<string | null>(
-        null
-    );
+    // Step3: 性格・好み（フリーテキスト）
+    const [userContext, setUserContext] = useState("");
 
-    // Step1/2 どちらかが揃っていれば送信可能
     const hasAudio = capturedAudioBase64 !== null || selectedMeow !== null;
-    const hasImage = capturedImageBase64 !== null || selectedPhoto !== null;
+    const hasImage = selectedPhoto !== null;
     const canSubmit = hasAudio && hasImage;
 
     const handleSubmit = async (): Promise<void> => {
         if (!canSubmit) return;
 
-        // Base64を解決
         let audioBase64: string | undefined;
         if (capturedAudioBase64) {
             audioBase64 = capturedAudioBase64;
@@ -48,65 +62,77 @@ export function ExperiencePage(): JSX.Element {
         }
 
         let imageBase64: string;
-        if (capturedImageBase64) {
-            imageBase64 = capturedImageBase64;
-        } else if (selectedPhoto) {
+        if (selectedPhoto) {
             imageBase64 = await urlToBase64(selectedPhoto.url);
         } else {
             return;
         }
 
-        // user_contextにPersonalityTypeをそのまま渡す
         await generate({
             mode: "experience",
             image_base64: imageBase64,
             audio_base64: audioBase64,
-            user_context: selectedPersonality ?? undefined,
+            user_context: userContext.trim() || undefined,
         });
     };
 
     return (
-        <div className="mx-auto max-w-2xl space-y-10 px-4 py-8">
-            <PageHeader
-                title="あなたが猫になる"
-                onBack={() => void navigate("/")}
-            />
+        <div className="mx-auto max-w-2xl py-6">
+            <div className="px-4">
+                <PageHeader
+                    title="あなたが猫になる"
+                    subtitle="3ステップで猫の動画を生成します"
+                    onBack={() => void navigate("/")}
+                />
+            </div>
 
-            <MeowSection
-                selected={selectedMeow}
-                selectedAudioBase64={capturedAudioBase64}
-                onSelect={setSelectedMeow}
-                onAudioCapture={setCapturedAudioBase64}
-                onToast={showToast}
-            />
+            <div className="mt-6 space-y-6 px-4 pb-36">
+                <StepCard step={1}>
+                    <MeowSection
+                        selected={selectedMeow}
+                        selectedAudioBase64={capturedAudioBase64}
+                        onSelect={setSelectedMeow}
+                        onAudioCapture={setCapturedAudioBase64}
+                        onToast={showToast}
+                    />
+                </StepCard>
 
-            <hr className="border-border" />
+                <StepCard step={2}>
+                    <PhotoSection
+                        selected={selectedPhoto}
+                        onSelect={setSelectedPhoto}
+                    />
+                </StepCard>
 
-            <PhotoSection
-                selected={selectedPhoto}
-                selectedImageBase64={capturedImageBase64}
-                onSelect={setSelectedPhoto}
-                onImageCapture={setCapturedImageBase64}
-                onToast={showToast}
-            />
+                <StepCard step={3}>
+                    <ContextSection
+                        value={userContext}
+                        onChange={setUserContext}
+                    />
+                </StepCard>
+            </div>
 
-            <hr className="border-border" />
-
-            <ContextSection
-                selected={selectedPersonality}
-                onSelect={setSelectedPersonality}
-            />
-
-            <Button
-                id="btn-generate-experience"
-                variant="primary"
-                size="lg"
-                disabled={!canSubmit || isLoading}
-                onClick={() => void handleSubmit()}
-                className="w-full"
-            >
-                {isLoading ? "生成中..." : "🎬 動画を生成する"}
-            </Button>
+            {/* スティッキー生成ボタン */}
+            <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-surface/90 px-4 py-4 backdrop-blur-md">
+                <div className="mx-auto max-w-2xl">
+                    <Button
+                        id="btn-generate-experience"
+                        variant="primary"
+                        size="lg"
+                        disabled={!canSubmit || isLoading}
+                        onClick={() => void handleSubmit()}
+                        className="w-full"
+                        leftIcon={<Wand2 size={18} />}
+                    >
+                        {isLoading ? "AIが生成しています..." : "動画を生成する"}
+                    </Button>
+                    {!canSubmit && (
+                        <p className="mt-2 text-center text-xs text-text-muted">
+                            鳴き声と写真を選択するとボタンが有効になります
+                        </p>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
