@@ -10,7 +10,7 @@ export function Card({
     className = "",
     children,
     ...props
-}: CardProps): JSX.Element {
+}: CardProps): React.JSX.Element {
     return (
         <div
             className={[

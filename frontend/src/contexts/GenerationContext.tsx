@@ -29,7 +29,7 @@ export function GenerationContextProvider({
     children,
 }: {
     children: ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
     const [input, setInputState] = useState<GenerateRequest | null>(null);
     const [response, setResponse] = useState<GenerateResponse | null>(null);
     const [resultState, setResultState] = useState<ResultState>("idle");

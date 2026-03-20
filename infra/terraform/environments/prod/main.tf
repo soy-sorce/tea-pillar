@@ -81,15 +81,15 @@ module "gcs" {
 }
 
 module "vpc" {
-  source                 = "../../modules/vpc"
-  project_id             = var.project_id
-  region                 = var.region
-  environment            = var.environment
-  network_name           = var.vpc_network_name
-  subnet_name            = var.vpc_subnet_name
-  subnet_cidr            = var.vpc_subnet_cidr
-  connector_name         = var.vpc_connector_name
-  connector_cidr         = var.vpc_connector_cidr
+  source                  = "../../modules/vpc"
+  project_id              = var.project_id
+  region                  = var.region
+  environment             = var.environment
+  network_name            = var.vpc_network_name
+  subnet_name             = var.vpc_subnet_name
+  subnet_cidr             = var.vpc_subnet_cidr
+  connector_name          = var.vpc_connector_name
+  connector_cidr          = var.vpc_connector_cidr
   connector_min_instances = var.vpc_connector_min_instances
   connector_max_instances = var.vpc_connector_max_instances
   connector_machine_type  = var.vpc_connector_machine_type
@@ -169,4 +169,17 @@ module "api_gateway" {
   jwt_issuer                    = var.api_gateway_jwt_issuer
   jwt_jwks_uri                  = var.api_gateway_jwt_jwks_uri
   jwt_audience                  = var.api_gateway_jwt_audience
+}
+
+resource "google_cloud_run_v2_service_iam_member" "apigateway_invoke_backend" {
+  project  = var.project_id
+  location = var.region
+  name     = module.backend_cloud_run.service_name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${module.iam.apigateway_service_account_email}"
+
+  depends_on = [
+    module.backend_cloud_run,
+    module.iam,
+  ]
 }

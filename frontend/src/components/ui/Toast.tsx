@@ -9,7 +9,7 @@ export function Toast({
     message,
     type = "info",
     onClose,
-}: ToastProps): JSX.Element {
+}: ToastProps): React.JSX.Element {
     const bg =
         type === "error"
             ? "bg-red-50 border-red-200 text-red-700"

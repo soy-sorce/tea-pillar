@@ -1,3 +1,9 @@
+resource "google_project_service" "vpcaccess" {
+  project            = var.project_id
+  service            = "vpcaccess.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_compute_network" "this" {
   name                    = var.network_name
   project                 = var.project_id
@@ -22,6 +28,12 @@ resource "google_vpc_access_connector" "this" {
   min_instances = var.connector_min_instances
   max_instances = var.connector_max_instances
   machine_type  = var.connector_machine_type
+
+  depends_on = [
+    google_project_service.vpcaccess,
+    google_compute_network.this,
+    google_compute_subnetwork.this,
+  ]
 }
 
 resource "google_compute_firewall" "allow_internal_egress" {

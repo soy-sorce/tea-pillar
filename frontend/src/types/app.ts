@@ -3,7 +3,6 @@
 
 export type ResultState = "idle" | "loading" | "done" | "error";
 export type InputMode = "A" | "B";
-export type PersonalityType = "curious" | "relaxed" | "timid" | "capricious";
 export type Reaction = "good" | "neutral" | "bad";
 
 export interface MeowSample {
@@ -14,10 +13,10 @@ export interface MeowSample {
 }
 
 export interface PhotoSample {
-    id: "happy" | "sad" | "angry";
-    emoji: string;
+    id: "cat-1" | "cat-2" | "cat-3";
     label: string;
-    url: string; // /samples/images/*.jpg
+    imageUrl: string; // /samples/cat-pictures/*.png
+    url: string;      // urlToBase64 で使うため同値
 }
 
 // 体験モードのサンプルデータ定数
@@ -43,18 +42,15 @@ export const MEOW_SAMPLES: MeowSample[] = [
 ];
 
 export const PHOTO_SAMPLES: PhotoSample[] = [
-    { id: "happy", emoji: "😊", label: "happy", url: "/samples/images/happy.jpg" },
-    { id: "sad", emoji: "😢", label: "sad", url: "/samples/images/sad.jpg" },
-    { id: "angry", emoji: "😠", label: "angry", url: "/samples/images/angry.jpg" },
+    { id: "cat-1", label: "cat-1", imageUrl: "/samples/cat-pictures/cat-1.png", url: "/samples/cat-pictures/cat-1.png" },
+    { id: "cat-2", label: "cat-2", imageUrl: "/samples/cat-pictures/cat-2.png", url: "/samples/cat-pictures/cat-2.png" },
+    { id: "cat-3", label: "cat-3", imageUrl: "/samples/cat-pictures/cat-3.png", url: "/samples/cat-pictures/cat-3.png" },
 ];
 
-export const PERSONALITY_OPTIONS: {
-    type: PersonalityType;
-    emoji: string;
-    label: string;
-}[] = [
-        { type: "curious", emoji: "🌟", label: "好奇心旺盛" },
-        { type: "relaxed", emoji: "😴", label: "のんびり屋" },
-        { type: "timid", emoji: "😱", label: "ビビりな猫" },
-        { type: "capricious", emoji: "👑", label: "気まぐれ" },
-    ];
+// コンテキスト入力のサンプル例（クリックでtextareaにfill）
+export const CONTEXT_EXAMPLES: string[] = [
+    "魚が大好きで、遊び好きな活発な猫",
+    "臆病でびっくりしやすい、内気な猫",
+    "甘えたでのんびり屋、ゴロゴロが好き",
+    "警戒心が強くツンデレ、でも実は寂しがり",
+];

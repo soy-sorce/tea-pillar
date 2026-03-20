@@ -200,7 +200,7 @@ variable "vpc_subnet_cidr" {
 
 variable "vpc_connector_name" {
   type    = string
-  default = "nekkoflix-vpc-connector-prod"
+  default = "nkfx-vpcconn-prod"
 }
 
 variable "vpc_connector_cidr" {

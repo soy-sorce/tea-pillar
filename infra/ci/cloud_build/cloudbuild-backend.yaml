@@ -4,9 +4,9 @@ steps:
     args:
       - build
       - -t
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:$COMMIT_SHA"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:$COMMIT_SHA"
       - -t
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:latest"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:latest"
       - -f
       - backend/Dockerfile
       - backend/
@@ -17,7 +17,7 @@ steps:
       - build-backend
     args:
       - push
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:$COMMIT_SHA"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:$COMMIT_SHA"
 
   - name: "gcr.io/cloud-builders/docker"
     id: push-backend-latest
@@ -25,7 +25,7 @@ steps:
       - build-backend
     args:
       - push
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:latest"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:latest"
 
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: deploy-backend
@@ -36,16 +36,16 @@ steps:
       - run
       - deploy
       - "${_SERVICE_NAME}"
-      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:$COMMIT_SHA
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:$COMMIT_SHA
       - --region=${_REGION}
       - --platform=managed
       - --quiet
 
 images:
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:$COMMIT_SHA"
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:latest"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:latest"
 
 substitutions:
   _REGION: "asia-northeast1"
   _REPOSITORY: "nekkoflix"
-  _SERVICE_NAME: "nekkoflix-backend-prod"
+  _SERVICE_NAME: "video-gen4cat-backend"
