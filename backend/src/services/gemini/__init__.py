@@ -1,1 +1,1 @@
-"""Gemini-related services."""
+"""Gemini integration package."""

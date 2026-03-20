@@ -1,1 +1,1 @@
-"""Data models package."""
+"""Pydantic and dataclass models."""

@@ -1,1 +1,1 @@
-"""Backend source package."""
+"""nekkoflix backend package."""

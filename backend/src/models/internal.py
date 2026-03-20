@@ -1,46 +1,34 @@
-# backend/src/models/internal.py
-"""サービス層で使用する内部データクラス定義."""
-from dataclasses import dataclass, field
+"""Internal service-layer models."""
+
+from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(slots=True)
 class CatFeatures:
-    """猫モデル Endpoint の出力を格納する内部データクラス."""
+    """Normalized model output from the custom endpoint."""
 
-    # 顔感情スコア
-    emotion_label: str                    # "happy" | "sad" | "angry"
-    emotion_probs: dict[str, float]       # {"happy": 0.72, "sad": 0.15, "angry": 0.13}
-
-    # 鳴き声分類
-    meow_label: str | None                # "brushing" | "waiting_for_food" | "isolation" | None
-    meow_probs: dict[str, float] | None
-
-    # ポーズ特徴量（12次元の角度特徴）
-    pose_angles: list[float]              # 12次元
-    pose_activity_score: float
-
-    # CLIP ゼロショットスコア（8種）
-    clip_scores: dict[str, float]         # {"attentive": 0.81, "relaxed": 0.34, ...}
-
-    # LightGBM Ranker スコア（11テンプレート）
-    ranker_scores: list[float]            # shape: (11,)
+    features: dict[str, float]
+    emotion_label: str
+    clip_top_label: str
+    meow_label: str | None
+    predicted_rewards: dict[str, float]
 
 
-@dataclass
+@dataclass(slots=True)
 class BanditSelection:
-    """Bandit による選択結果."""
+    """Template selected by UCB."""
 
     template_id: str
     template_name: str
     prompt_text: str
-    final_score: float
-    ranker_score: float
+    predicted_reward: float
     ucb_bonus: float
+    final_score: float
 
 
-@dataclass
+@dataclass(slots=True)
 class GenerationContext:
-    """/generate 処理全体で引き回すコンテキスト."""
+    """State carried through the /generate pipeline."""
 
     session_id: str
     mode: str

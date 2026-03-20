@@ -1,53 +1,54 @@
+"""Gemini prompt builder."""
+
 from src.models.internal import CatFeatures
 
 _SYSTEM_INSTRUCTION = """\
-  あなたは猫向け動画のプロンプトクリエイターです。
-  以下の情報を元に、Veo3で生成する動画のプロンプトを1件出力してください。
-  出力はプロンプト文字列のみ（説明文・前置き不要）。"""
+あなたは猫向け動画のプロンプトクリエイターです。
+以下の情報を元に、Veo で生成する動画のプロンプトを 1 件だけ出力してください。
+出力はプロンプト文字列のみとし、説明文や前置きは不要です。"""
 
 _CONSTRAINTS = """\
-  - 動画は音声なし
-  - 猫が興味を持ちやすい動きのある映像
-  - 10〜15秒程度の短編"""
+- 動画は音声なし
+- 猫が興味を持ちやすい動きのある映像
+- 10〜15秒程度の短編
+- 実写寄りで不気味さを避ける
+- 画面全体で視線誘導がしやすい構図"""
 
 
 class PromptBuilder:
-      """Gemini プロンプト組み立てクラス."""
+    """Build the Gemini input prompt."""
 
-      def build(
-          self,
-          template_text: str,
-          cat_features: CatFeatures,
-          state_key: str,
-          user_context: str | None,
-      ) -> str:
-          context_section = (
-              f"[オーナーが設定した猫の性格・好み]\n{user_context}"
-              if user_context
-              else "[オーナーが設定した猫の性格・好み]\n（指定なし）"
-          )
+    def build(
+        self,
+        template_text: str,
+        cat_features: CatFeatures,
+        state_key: str,
+        user_context: str | None,
+    ) -> str:
+        """Assemble the prompt from model outputs and template text."""
+        context_section = user_context if user_context else "（指定なし）"
+        feature_lines = "\n".join(
+            f"- {key}: {value:.4f}" for key, value in sorted(cat_features.features.items())
+        )
+        return f"""{_SYSTEM_INSTRUCTION}
 
-          attentive = cat_features.clip_scores.get("attentive", 0.0)
+[テンプレート]
+{template_text}
 
-          return f"""{_SYSTEM_INSTRUCTION}
+[状態キー]
+{state_key}
 
-  [テンプレート]
-  {template_text}
+[補助ラベル]
+- emotion_label: {cat_features.emotion_label}
+- clip_top_label: {cat_features.clip_top_label}
+- meow_label: {cat_features.meow_label or "unknown"}
 
-  [猫の現在の状態]
-  感情: {cat_features.emotion_label}
-  鳴き声: {cat_features.meow_label or "不明"}
-  注目スコア: {attentive:.2f}
-  活発度: {cat_features.pose_activity_score:.2f}
-  状態キー: {state_key}
+[猫状態特徴量]
+{feature_lines}
 
-  {context_section}
+[オーナーコンテキスト]
+{context_section}
 
-  [制約]
-  {_CONSTRAINTS}"""
-
-  
-  
-  
-
-
+[制約]
+{_CONSTRAINTS}
+"""
