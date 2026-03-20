@@ -7,7 +7,16 @@ from typing import Self
 
 import pytest
 from src.config import Settings
-from src.exceptions import VertexAIError
+from src.exceptions import (
+    FirestoreError,
+    GeminiError,
+    NotConfiguredError,
+    TemplateSelectionError,
+    VeoGenerationError,
+    VeoTimeoutError,
+    VertexAIError,
+    VertexAITimeoutError,
+)
 from src.models.internal import BanditSelection, CatFeatures, GenerationContext
 from src.models.request import GenerateRequest
 from src.services.orchestrator import GenerateOrchestrator
@@ -27,6 +36,12 @@ class FakeFirestore:
 
     async def fail_session(self: Self, ctx: GenerationContext, error_msg: str) -> None:
         self.failed = (ctx, error_msg)
+
+
+class FailingFailFirestore(FakeFirestore):
+    async def fail_session(self: Self, ctx: GenerationContext, error_msg: str) -> None:
+        del ctx, error_msg
+        raise FirestoreError(detail="cannot persist failure")
 
 
 class FakeCatModelClient:
@@ -121,6 +136,8 @@ async def test_execute_returns_final_generate_response() -> None:
     assert firestore.created is not None
     assert firestore.completed is not None
     assert firestore.failed is None
+    assert firestore.created.session_id == response.session_id
+    assert firestore.completed.state_key == "unknown_happy_curious_cat"
 
 
 class FailingCatModelClient:
@@ -154,3 +171,137 @@ async def test_execute_marks_session_failed_when_service_raises() -> None:
     assert firestore.created is not None
     assert firestore.failed is not None
     assert firestore.failed[1] == "endpoint failed"
+
+
+@pytest.mark.parametrize(
+    ("exception", "expected_detail"),
+    [
+        (VertexAITimeoutError(detail="vertex timeout"), "vertex timeout"),
+        (VertexAIError(detail="vertex failed"), "vertex failed"),
+        (TemplateSelectionError(detail="template failed"), "template failed"),
+        (GeminiError(detail="gemini failed"), "gemini failed"),
+        (VeoGenerationError(detail="veo failed"), "veo failed"),
+        (VeoTimeoutError(detail="veo timeout"), "veo timeout"),
+        (NotConfiguredError(detail="missing config"), "missing config"),
+    ],
+)
+async def test_execute_marks_session_failed_for_all_handled_errors(
+    exception: Exception,
+    expected_detail: str,
+) -> None:
+    class FailingDependency:
+        async def predict(
+            self: Self, image_base64: str, audio_base64: str | None, candidate_video_ids: list[str]
+        ) -> CatFeatures:
+            del image_base64, audio_base64, candidate_video_ids
+            raise exception
+
+    firestore = FakeFirestore()
+    orchestrator = GenerateOrchestrator(
+        settings=Settings(),
+        firestore_client=firestore,  # type: ignore[arg-type]
+        cat_model_client=FailingDependency(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(type(exception)):
+        await orchestrator.execute(
+            GenerateRequest(
+                mode="experience",
+                image_base64="encoded-image",
+                audio_base64=None,
+                user_context=None,
+            ),
+        )
+
+    assert firestore.failed is not None
+    assert firestore.failed[1] == expected_detail
+
+
+async def test_execute_reraises_original_error_when_fail_session_also_fails() -> None:
+    orchestrator = GenerateOrchestrator(
+        settings=Settings(),
+        firestore_client=FailingFailFirestore(),  # type: ignore[arg-type]
+        cat_model_client=FailingCatModelClient(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(VertexAIError):
+        await orchestrator.execute(
+            GenerateRequest(
+                mode="experience",
+                image_base64="encoded-image",
+                audio_base64=None,
+                user_context=None,
+            ),
+        )
+
+
+async def test_execute_forwards_none_audio_and_user_context() -> None:
+    captured: dict[str, object] = {}
+
+    class NoAudioCatModelClient:
+        async def predict(
+            self: Self,
+            image_base64: str,
+            audio_base64: str | None,
+            candidate_video_ids: list[str],
+        ) -> CatFeatures:
+            captured["image_base64"] = image_base64
+            captured["audio_base64"] = audio_base64
+            captured["candidate_video_ids"] = candidate_video_ids
+            return CatFeatures(
+                features={"emotion_happy": 0.9},
+                emotion_label="happy",
+                clip_top_label="curious_cat",
+                meow_label=None,
+                predicted_rewards={"video-1": 0.3},
+            )
+
+    class SingleBandit:
+        async def select(
+            self: Self, state_key: str, predicted_rewards: dict[str, float]
+        ) -> BanditSelection:
+            del predicted_rewards
+            captured["state_key"] = state_key
+            return BanditSelection(
+                template_id="video-1",
+                template_name="mouse escape chase",
+                prompt_text="mouse chasing prompt",
+                predicted_reward=0.3,
+                ucb_bonus=0.0,
+                final_score=0.3,
+            )
+
+    class RecordingGemini:
+        async def generate_prompt(
+            self: Self,
+            template_text: str,
+            cat_features: CatFeatures,
+            state_key: str,
+            user_context: str | None,
+        ) -> str:
+            del template_text, cat_features, state_key
+            captured["user_context"] = user_context
+            return "final veo prompt"
+
+    orchestrator = GenerateOrchestrator(
+        settings=Settings(),
+        firestore_client=FakeFirestore(),  # type: ignore[arg-type]
+        cat_model_client=NoAudioCatModelClient(),  # type: ignore[arg-type]
+        bandit=SingleBandit(),  # type: ignore[arg-type]
+        gemini_client=RecordingGemini(),  # type: ignore[arg-type]
+        veo_client=FakeVeo(),  # type: ignore[arg-type]
+        signed_url_generator=FakeSignedUrlGenerator(),  # type: ignore[arg-type]
+    )
+
+    response = await orchestrator.execute(
+        GenerateRequest(
+            mode="production",
+            image_base64="encoded-image",
+            audio_base64=None,
+            user_context=None,
+        ),
+    )
+
+    assert response.template_id == "video-1"
+    assert captured["audio_base64"] is None
+    assert captured["user_context"] is None

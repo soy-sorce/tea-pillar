@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from typing import Self
 
+import pytest
+from src.exceptions import TemplateSelectionError
 from src.models.firestore import BanditTableDocument, TemplateDocument
 from src.services.bandit.ucb import UCBBandit
 
@@ -103,3 +106,54 @@ async def test_update_delegates_to_repository() -> None:
     )
 
     assert firestore.updated == ("video-1", "unknown_sad_sleepy_cat", 1.0)
+
+
+async def test_select_raises_when_no_active_templates() -> None:
+    from src.config import Settings
+
+    bandit = UCBBandit(
+        settings=Settings(),
+        firestore_client=FakeFirestoreClient(entries={}, templates=[]),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(TemplateSelectionError):
+        await bandit.select(
+            state_key="unknown_happy_curious_cat",
+            predicted_rewards={"video-1": 0.1},
+        )
+
+
+async def test_select_raises_when_predicted_reward_is_missing() -> None:
+    from src.config import Settings
+
+    bandit = UCBBandit(
+        settings=Settings(),
+        firestore_client=FakeFirestoreClient(
+            entries={},
+            templates=[_build_template("video-1", "first")],
+        ),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(TemplateSelectionError):
+        await bandit.select(
+            state_key="unknown_happy_curious_cat",
+            predicted_rewards={},
+        )
+
+
+def test_calculate_ucb_bonus_respects_alpha_and_count() -> None:
+    from src.config import Settings
+
+    bandit = UCBBandit(
+        settings=Settings(bandit_ucb_alpha=2.0),
+        firestore_client=FakeFirestoreClient(entries={}, templates=[]),  # type: ignore[arg-type]
+    )
+
+    assert bandit._calculate_ucb_bonus(total_n=0, selection_count=1) == 0.0
+    assert math.isclose(
+        bandit._calculate_ucb_bonus(total_n=10, selection_count=1),
+        2.0 * math.sqrt(2 * math.log(10)),
+    )
+    assert bandit._calculate_ucb_bonus(
+        total_n=10, selection_count=10
+    ) < bandit._calculate_ucb_bonus(total_n=10, selection_count=1)
