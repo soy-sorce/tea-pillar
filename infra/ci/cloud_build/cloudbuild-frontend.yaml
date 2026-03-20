@@ -45,6 +45,9 @@ images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-frontend:$COMMIT_SHA"
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-frontend:latest"
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _REGION: "asia-northeast1"
   _REPOSITORY: "nekkoflix"
