@@ -47,6 +47,9 @@ steps:
       - --project=$PROJECT_ID
       - --quiet
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _REGION: "asia-northeast1"
   _API_ID: "video-gen4cat-api"
