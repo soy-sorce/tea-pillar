@@ -23,6 +23,15 @@ paths:
         "502":
           description: Backend error
   /generate:
+    options:
+      summary: CORS preflight for generate
+      operationId: generateOptions
+      x-google-backend:
+        address: ${backend_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        "204":
+          description: No Content
     post:
       summary: Generate a cat-tailored video
       operationId: generate
@@ -56,6 +65,15 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
   /feedback:
+    options:
+      summary: CORS preflight for feedback
+      operationId: feedbackOptions
+      x-google-backend:
+        address: ${backend_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        "204":
+          description: No Content
     post:
       summary: Record user feedback
       operationId: feedback
