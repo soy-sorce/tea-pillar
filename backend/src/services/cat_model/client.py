@@ -11,6 +11,7 @@ from google.cloud import aiplatform
 from src.config import Settings
 from src.exceptions import NotConfiguredError, VertexAIError, VertexAITimeoutError
 from src.models.internal import CatFeatures
+from src.services.cat_model.image_preprocessor import VertexImagePreprocessor
 from src.services.cat_model.schemas import EndpointPrediction
 
 logger = structlog.get_logger(__name__)
@@ -30,6 +31,7 @@ class CatModelClient:
 
     def __init__(self: Self, settings: Settings) -> None:
         self._settings = settings
+        self._image_preprocessor = VertexImagePreprocessor()
 
     async def predict(
         self: Self,
@@ -50,8 +52,10 @@ class CatModelClient:
             location=self._settings.vertex_endpoint_location,
         )
 
+        processed_image_base64 = self._image_preprocessor.preprocess(image_base64)
+
         instance: dict[str, str | list[str] | None] = {
-            "image_base64": image_base64,
+            "image_base64": processed_image_base64,
             "audio_base64": audio_base64,
             "candidate_video_ids": candidate_video_ids,
         }
@@ -67,6 +71,7 @@ class CatModelClient:
             location=self._settings.vertex_endpoint_location,
             timeout_seconds=self._settings.vertex_prediction_timeout,
             image_summary=_summarize_base64(image_base64),
+            processed_image_summary=_summarize_base64(processed_image_base64),
             audio_summary=_summarize_base64(audio_base64),
             candidate_video_ids=candidate_video_ids,
         )

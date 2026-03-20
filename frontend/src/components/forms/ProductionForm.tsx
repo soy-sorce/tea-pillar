@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/Button";
 import { useGenerate } from "@/hooks/useGenerate";
 import { fileToBase64 } from "@/lib/imageUtils";
 import { blobToBase64 } from "@/lib/audioUtils";
+import {
+    MAX_AUDIO_UPLOAD_BYTES,
+    MAX_AUDIO_UPLOAD_LABEL,
+    MAX_IMAGE_UPLOAD_BYTES,
+    MAX_IMAGE_UPLOAD_LABEL,
+} from "@/lib/uploadLimits";
 
 interface DropZoneProps {
     label: string;
@@ -14,9 +20,20 @@ interface DropZoneProps {
     icon: React.ReactNode;
     onFile: (file: File) => void;
     inputRef: React.RefObject<HTMLInputElement | null>;
+    errorMessage?: string | null;
 }
 
-function DropZone({ label, sublabel, required, file, accept, icon, onFile, inputRef }: DropZoneProps): React.JSX.Element {
+function DropZone({
+    label,
+    sublabel,
+    required,
+    file,
+    accept,
+    icon,
+    onFile,
+    inputRef,
+    errorMessage,
+}: DropZoneProps): React.JSX.Element {
     const [isDragging, setIsDragging] = useState(false);
 
     return (
@@ -87,14 +104,24 @@ function DropZone({ label, sublabel, required, file, accept, icon, onFile, input
                     if (selectedFile) onFile(selectedFile);
                 }}
             />
+            {errorMessage && <p className="mt-2 text-xs text-red-500">{errorMessage}</p>}
         </div>
     );
+}
+
+function validateFileSize(file: File, maxBytes: number, label: string): string | null {
+    if (file.size <= maxBytes) {
+        return null;
+    }
+    return `${label}は${(maxBytes / (1024 * 1024)).toFixed(0)}MB以下のファイルを選択してください`;
 }
 
 export function ProductionForm(): React.JSX.Element {
     const { generate, isLoading } = useGenerate();
     const [audioFile, setAudioFile] = useState<File | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [audioError, setAudioError] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
     const [userContext, setUserContext] = useState("");
     const audioInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -114,28 +141,54 @@ export function ProductionForm(): React.JSX.Element {
         });
     };
 
+    const handleAudioFile = (file: File): void => {
+        const error = validateFileSize(file, MAX_AUDIO_UPLOAD_BYTES, "鳴き声ファイル");
+        if (error) {
+            setAudioFile(null);
+            setAudioError(error);
+            return;
+        }
+
+        setAudioError(null);
+        setAudioFile(file);
+    };
+
+    const handleImageFile = (file: File): void => {
+        const error = validateFileSize(file, MAX_IMAGE_UPLOAD_BYTES, "顔・全身写真");
+        if (error) {
+            setImageFile(null);
+            setImageError(error);
+            return;
+        }
+
+        setImageError(null);
+        setImageFile(file);
+    };
+
     return (
         <div className="space-y-5">
             <div className="space-y-6 rounded-card-lg border border-border bg-surface p-6 shadow-card">
                 <DropZone
                     label="鳴き声ファイル"
-                    sublabel=".wav 形式"
+                    sublabel={`.wav 形式 / ${MAX_AUDIO_UPLOAD_LABEL}以下`}
                     file={audioFile}
                     accept="audio/wav,.wav"
                     icon={<Music size={22} />}
-                    onFile={setAudioFile}
+                    onFile={handleAudioFile}
                     inputRef={audioInputRef}
+                    errorMessage={audioError}
                 />
                 <div className="border-t border-border" />
                 <DropZone
                     label="顔・全身写真"
-                    sublabel=".jpg / .png 形式"
+                    sublabel={`.jpg / .png 形式 / ${MAX_IMAGE_UPLOAD_LABEL}以下`}
                     required
                     file={imageFile}
                     accept="image/jpeg,image/png,.jpg,.png"
                     icon={<ImageIcon size={22} />}
-                    onFile={setImageFile}
+                    onFile={handleImageFile}
                     inputRef={imageInputRef}
+                    errorMessage={imageError}
                 />
             </div>
 
