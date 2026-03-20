@@ -67,8 +67,7 @@ def create_app() -> FastAPI:
         logger.error(
             "application_error",
             path=request.url.path,
-            error_code=exc.error_code,
-            message=exc.message,
+            **exc.to_log_context(),
         )
         return JSONResponse(
             status_code=exc.status_code,

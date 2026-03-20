@@ -71,6 +71,14 @@ async def feedback(
         state_key=session.state_key,
         reward=reward,
     )
+    logger.info(
+        "feedback_completed",
+        session_id=request.session_id,
+        reaction=request.reaction,
+        reward=reward,
+        template_id=session.template_id,
+        state_key=session.state_key,
+    )
 
     return FeedbackResponse(
         reward=reward,

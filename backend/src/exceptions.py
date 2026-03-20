@@ -29,6 +29,15 @@ class NekkoflixBaseError(Exception):
             "message": self.message,
         }
 
+    def to_log_context(self) -> dict[str, str | int | None]:
+        """Serialize internal error details for structured logs."""
+        return {
+            "error_code": self.error_code,
+            "message": self.message,
+            "detail": self.detail,
+            "status_code": self.status_code,
+        }
+
 
 class InvalidInputError(NekkoflixBaseError):
     """Invalid request data."""

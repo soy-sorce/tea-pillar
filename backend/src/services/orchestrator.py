@@ -101,6 +101,13 @@ class GenerateOrchestrator:
             VeoGenerationError,
             VeoTimeoutError,
         ) as exc:
+            logger.error(
+                "generate_failed",
+                session_id=ctx.session_id,
+                state_key=ctx.state_key,
+                template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else None,
+                **exc.to_log_context(),
+            )
             await self._safely_fail_session(ctx=ctx, exc=exc)
             raise
 
@@ -122,6 +129,11 @@ class GenerateOrchestrator:
             await self._firestore.fail_session(
                 ctx=ctx,
                 error_msg=exc.detail or str(exc),
+            )
+            logger.info(
+                "session_marked_failed",
+                session_id=ctx.session_id,
+                **exc.to_log_context(),
             )
         except FirestoreError:
             logger.error(
