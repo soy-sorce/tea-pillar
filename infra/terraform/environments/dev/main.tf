@@ -165,7 +165,7 @@ module "api_gateway" {
   gateway_id                   = var.api_gateway_name
   backend_url                  = module.backend_cloud_run.service_uri
   gateway_service_account_email = module.iam.apigateway_service_account_email
-  openapi_template_path        = "${path.root}/../../apigateway/openapi.yaml"
+  openapi_template_path        = "${path.root}/../../../apigateway/openapi.yaml"
   jwt_issuer                   = var.api_gateway_jwt_issuer
   jwt_jwks_uri                 = var.api_gateway_jwt_jwks_uri
   jwt_audience                 = var.api_gateway_jwt_audience

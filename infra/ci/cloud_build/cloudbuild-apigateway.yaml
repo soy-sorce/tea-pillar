@@ -1,0 +1,59 @@
+steps:
+  - name: "python:3.11-slim"
+    id: render-openapi
+    entrypoint: python
+    args:
+      - -c
+      - |
+        from pathlib import Path
+        template = Path("infra/apigateway/openapi.yaml").read_text(encoding="utf-8")
+        rendered = (
+            template
+            .replace("${backend_url}", "${_BACKEND_URL}")
+            .replace("${jwt_issuer}", "${_JWT_ISSUER}")
+            .replace("${jwt_jwks_uri}", "${_JWT_JWKS_URI}")
+            .replace("${jwt_audience}", "${_JWT_AUDIENCE}")
+        )
+        Path("/workspace/openapi.rendered.yaml").write_text(rendered, encoding="utf-8")
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: create-api-config
+    waitFor:
+      - render-openapi
+    entrypoint: gcloud
+    args:
+      - api-gateway
+      - api-configs
+      - create
+      - "${_API_CONFIG_ID}-$SHORT_SHA"
+      - --api=${_API_ID}
+      - --openapi-spec=/workspace/openapi.rendered.yaml
+      - --project=$PROJECT_ID
+      - --backend-auth-service-account=${_GATEWAY_SERVICE_ACCOUNT}
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: update-gateway
+    waitFor:
+      - create-api-config
+    entrypoint: gcloud
+    args:
+      - api-gateway
+      - gateways
+      - update
+      - "${_GATEWAY_ID}"
+      - --api=${_API_ID}
+      - --api-config=${_API_CONFIG_ID}-$SHORT_SHA
+      - --location=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
+substitutions:
+  _REGION: "asia-northeast1"
+  _API_ID: "nekkoflix-api"
+  _API_CONFIG_ID: "v1"
+  _GATEWAY_ID: "nekkoflix-api-gateway-prod"
+  _BACKEND_URL: "REPLACE_ME_BACKEND_URL"
+  _JWT_ISSUER: "REPLACE_ME_JWT_ISSUER"
+  _JWT_JWKS_URI: "REPLACE_ME_JWT_JWKS_URI"
+  _JWT_AUDIENCE: "REPLACE_ME_JWT_AUDIENCE"
+  _GATEWAY_SERVICE_ACCOUNT: "REPLACE_ME_GATEWAY_SERVICE_ACCOUNT"
