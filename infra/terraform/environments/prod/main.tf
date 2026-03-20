@@ -170,3 +170,16 @@ module "api_gateway" {
   jwt_jwks_uri                  = var.api_gateway_jwt_jwks_uri
   jwt_audience                  = var.api_gateway_jwt_audience
 }
+
+resource "google_cloud_run_v2_service_iam_member" "apigateway_invoke_backend" {
+  project  = var.project_id
+  location = var.region
+  name     = module.backend_cloud_run.service_name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${module.iam.apigateway_service_account_email}"
+
+  depends_on = [
+    module.backend_cloud_run,
+    module.iam,
+  ]
+}

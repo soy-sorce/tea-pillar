@@ -37,6 +37,12 @@ resource "google_api_gateway_api" "this" {
   provider = google-beta
   project  = var.project_id
   api_id   = var.api_id
+
+  depends_on = [
+    google_project_service.apigateway,
+    google_project_service.servicemanagement,
+    google_project_service.servicecontrol,
+  ]
 }
 
 resource "google_api_gateway_api_config" "this" {
