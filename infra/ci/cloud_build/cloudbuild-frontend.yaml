@@ -3,6 +3,8 @@ steps:
     id: build-frontend
     args:
       - build
+      - --build-arg
+      - VITE_BACKEND_URL=${_VITE_BACKEND_URL}
       - -t
       - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-frontend:$COMMIT_SHA"
       - -t
@@ -52,3 +54,4 @@ substitutions:
   _REGION: "asia-northeast1"
   _REPOSITORY: "nekkoflix"
   _SERVICE_NAME: "video-gen4cat-frontend"
+  _VITE_BACKEND_URL: "https://video-gen4cat-gateway-17fqo4kd.an.gateway.dev"
