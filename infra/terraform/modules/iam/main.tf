@@ -39,6 +39,12 @@ resource "google_project_iam_member" "backend_firestore" {
   member  = "serviceAccount:${google_service_account.backend.email}"
 }
 
+resource "google_service_account_iam_member" "backend_sign_blob_self" {
+  service_account_id = google_service_account.backend.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.backend.email}"
+}
+
 resource "google_storage_bucket_iam_member" "backend_gcs_admin" {
   bucket = var.gcs_bucket_name
   role   = "roles/storage.objectAdmin"

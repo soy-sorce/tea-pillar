@@ -81,15 +81,15 @@ module "gcs" {
 }
 
 module "vpc" {
-  source                 = "../../modules/vpc"
-  project_id             = var.project_id
-  region                 = var.region
-  environment            = var.environment
-  network_name           = var.vpc_network_name
-  subnet_name            = var.vpc_subnet_name
-  subnet_cidr            = var.vpc_subnet_cidr
-  connector_name         = var.vpc_connector_name
-  connector_cidr         = var.vpc_connector_cidr
+  source                  = "../../modules/vpc"
+  project_id              = var.project_id
+  region                  = var.region
+  environment             = var.environment
+  network_name            = var.vpc_network_name
+  subnet_name             = var.vpc_subnet_name
+  subnet_cidr             = var.vpc_subnet_cidr
+  connector_name          = var.vpc_connector_name
+  connector_cidr          = var.vpc_connector_cidr
   connector_min_instances = var.vpc_connector_min_instances
   connector_max_instances = var.vpc_connector_max_instances
   connector_machine_type  = var.vpc_connector_machine_type
