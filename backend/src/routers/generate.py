@@ -1,6 +1,6 @@
-"""POST /generate route."""
+"""Routes for /generate."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 
 from src.config import Settings, get_settings
 from src.models.request import GenerateRequest
@@ -8,6 +8,16 @@ from src.models.response import ErrorResponse, GenerateResponse
 from src.services.orchestrator import GenerateOrchestrator
 
 router = APIRouter(tags=["generate"])
+
+
+@router.options(
+    "/generate",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="CORS preflight for generate",
+)
+async def generate_options() -> Response:
+    """Return a successful preflight response for browser clients."""
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

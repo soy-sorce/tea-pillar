@@ -51,3 +51,28 @@ def test_build_uses_default_text_when_user_context_is_missing() -> None:
 
     assert "（指定なし）" in prompt
     assert "- meow_label: insistent" in prompt
+
+
+def test_build_sorts_feature_lines_and_includes_constraints() -> None:
+    builder = PromptBuilder()
+    features = CatFeatures(
+        features={
+            "z_feature": 0.1,
+            "a_feature": 0.9,
+        },
+        emotion_label="happy",
+        clip_top_label="curious_cat",
+        meow_label="waiting_for_food",
+        predicted_rewards={"video-1": 0.2},
+    )
+
+    prompt = builder.build(
+        template_text="template",
+        cat_features=features,
+        state_key="waiting_for_food_happy_curious_cat",
+        user_context=None,
+    )
+
+    assert prompt.index("- a_feature: 0.9000") < prompt.index("- z_feature: 0.1000")
+    assert "あなたは猫向け動画のプロンプトクリエイターです。" in prompt
+    assert "- 動画は音声なし" in prompt

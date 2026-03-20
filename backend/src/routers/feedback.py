@@ -1,7 +1,7 @@
-"""POST /feedback route."""
+"""Routes for /feedback."""
 
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 
 from src.config import Settings, get_settings
 from src.exceptions import SessionConflictError
@@ -18,6 +18,16 @@ REACTION_TO_REWARD: dict[str, float] = {
     "neutral": 0.0,
     "bad": -0.5,
 }
+
+
+@router.options(
+    "/feedback",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="CORS preflight for feedback",
+)
+async def feedback_options() -> Response:
+    """Return a successful preflight response for browser clients."""
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
