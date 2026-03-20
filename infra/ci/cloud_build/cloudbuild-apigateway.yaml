@@ -49,9 +49,9 @@ steps:
 
 substitutions:
   _REGION: "asia-northeast1"
-  _API_ID: "nekkoflix-api"
+  _API_ID: "video-gen4cat-api"
   _API_CONFIG_ID: "v1"
-  _GATEWAY_ID: "nekkoflix-api-gateway-prod"
+  _GATEWAY_ID: "video-gen4cat-gateway"
   _BACKEND_URL: "REPLACE_ME_BACKEND_URL"
   _JWT_ISSUER: "REPLACE_ME_JWT_ISSUER"
   _JWT_JWKS_URI: "REPLACE_ME_JWT_JWKS_URI"
