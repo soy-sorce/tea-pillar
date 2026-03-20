@@ -1,6 +1,7 @@
 swagger: "2.0"
 info:
   title: nekkoflix-api
+  description: nekkoflix Backend API Gateway
   version: "1.0.0"
 schemes:
   - https
@@ -9,6 +10,7 @@ produces:
 paths:
   /health:
     get:
+      summary: Health check
       operationId: health
       x-google-backend:
         address: ${backend_url}
@@ -16,12 +18,18 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: "#/definitions/HealthResponse"
+        "502":
+          description: Backend error
   /generate:
     post:
+      summary: Generate a cat-tailored video
       operationId: generate
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
+        deadline: 360.0
       security:
         - google_id_token: []
       parameters:
@@ -29,16 +37,34 @@ paths:
           name: body
           required: true
           schema:
-            type: object
+            $ref: "#/definitions/GenerateRequest"
       responses:
         "200":
           description: OK
+          schema:
+            $ref: "#/definitions/GenerateResponse"
+        "400":
+          description: Invalid input
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+        "502":
+          description: Upstream backend error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "504":
+          description: Upstream timeout
+          schema:
+            $ref: "#/definitions/ErrorResponse"
   /feedback:
     post:
+      summary: Record user feedback
       operationId: feedback
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
+        deadline: 30.0
       security:
         - google_id_token: []
       parameters:
@@ -46,10 +72,30 @@ paths:
           name: body
           required: true
           schema:
-            type: object
+            $ref: "#/definitions/FeedbackRequest"
       responses:
         "200":
           description: OK
+          schema:
+            $ref: "#/definitions/FeedbackResponse"
+        "400":
+          description: Invalid input
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Session not found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "409":
+          description: Session conflict
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: Internal error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
 securityDefinitions:
   google_id_token:
     authorizationUrl: ""
@@ -58,3 +104,87 @@ securityDefinitions:
     x-google-issuer: "${jwt_issuer}"
     x-google-jwks_uri: "${jwt_jwks_uri}"
     x-google-audiences: "${jwt_audience}"
+definitions:
+  GenerateRequest:
+    type: object
+    required:
+      - mode
+      - image_base64
+    properties:
+      mode:
+        type: string
+        enum:
+          - experience
+          - production
+      image_base64:
+        type: string
+      audio_base64:
+        type: string
+      user_context:
+        type: string
+  FeedbackRequest:
+    type: object
+    required:
+      - session_id
+      - reaction
+    properties:
+      session_id:
+        type: string
+      reaction:
+        type: string
+        enum:
+          - good
+          - neutral
+          - bad
+  GenerateResponse:
+    type: object
+    required:
+      - session_id
+      - video_url
+      - state_key
+      - template_id
+      - template_name
+    properties:
+      session_id:
+        type: string
+      video_url:
+        type: string
+      state_key:
+        type: string
+      template_id:
+        type: string
+      template_name:
+        type: string
+  FeedbackResponse:
+    type: object
+    required:
+      - reward
+      - updated_template_id
+    properties:
+      reward:
+        type: number
+        format: float
+      updated_template_id:
+        type: string
+  HealthResponse:
+    type: object
+    required:
+      - status
+      - environment
+    properties:
+      status:
+        type: string
+        enum:
+          - ok
+      environment:
+        type: string
+  ErrorResponse:
+    type: object
+    required:
+      - error_code
+      - message
+    properties:
+      error_code:
+        type: string
+      message:
+        type: string
