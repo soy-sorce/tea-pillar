@@ -1,6 +1,7 @@
 """Generation orchestrator."""
 
 import uuid
+from typing import Self
 
 import structlog
 
@@ -33,17 +34,30 @@ logger = structlog.get_logger(__name__)
 class GenerateOrchestrator:
     """Coordinate the full /generate workflow."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self: Self,
+        settings: Settings,
+        *,
+        firestore_client: FirestoreClient | None = None,
+        cat_model_client: CatModelClient | None = None,
+        state_key_builder: StateKeyBuilder | None = None,
+        bandit: UCBBandit | None = None,
+        gemini_client: GeminiClient | None = None,
+        veo_client: VeoClient | None = None,
+        signed_url_generator: SignedUrlGenerator | None = None,
+    ) -> None:
         self._settings = settings
-        self._firestore = FirestoreClient(settings=settings)
-        self._cat_model = CatModelClient(settings=settings)
-        self._state_key_builder = StateKeyBuilder()
-        self._bandit = UCBBandit(settings=settings, firestore_client=self._firestore)
-        self._gemini = GeminiClient(settings=settings)
-        self._veo = VeoClient(settings=settings)
-        self._signed_url_generator = SignedUrlGenerator(settings=settings)
+        self._firestore = firestore_client or FirestoreClient(settings=settings)
+        self._cat_model = cat_model_client or CatModelClient(settings=settings)
+        self._state_key_builder = state_key_builder or StateKeyBuilder()
+        self._bandit = bandit or UCBBandit(settings=settings, firestore_client=self._firestore)
+        self._gemini = gemini_client or GeminiClient(settings=settings)
+        self._veo = veo_client or VeoClient(settings=settings)
+        self._signed_url_generator = signed_url_generator or SignedUrlGenerator(
+            settings=settings,
+        )
 
-    async def execute(self, request: GenerateRequest) -> GenerateResponse:
+    async def execute(self: Self, request: GenerateRequest) -> GenerateResponse:
         """Run the generation pipeline and return the final payload."""
         ctx = GenerationContext(
             session_id=str(uuid.uuid4()),
@@ -99,7 +113,7 @@ class GenerateOrchestrator:
         )
 
     async def _safely_fail_session(
-        self,
+        self: Self,
         ctx: GenerationContext,
         exc: NekkoflixBaseError,
     ) -> None:

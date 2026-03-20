@@ -1,0 +1,60 @@
+swagger: "2.0"
+info:
+  title: nekkoflix-api
+  version: "1.0.0"
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /health:
+    get:
+      operationId: health
+      x-google-backend:
+        address: ${backend_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        "200":
+          description: OK
+  /generate:
+    post:
+      operationId: generate
+      x-google-backend:
+        address: ${backend_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      security:
+        - google_id_token: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        "200":
+          description: OK
+  /feedback:
+    post:
+      operationId: feedback
+      x-google-backend:
+        address: ${backend_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      security:
+        - google_id_token: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+      responses:
+        "200":
+          description: OK
+securityDefinitions:
+  google_id_token:
+    authorizationUrl: ""
+    flow: "implicit"
+    type: "oauth2"
+    x-google-issuer: "${jwt_issuer}"
+    x-google-jwks_uri: "${jwt_jwks_uri}"
+    x-google-audiences: "${jwt_audience}"

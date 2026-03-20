@@ -2,10 +2,25 @@
 
 | 項目 | 内容 |
 |------|------|
-| ドキュメントバージョン | v1.0 |
+| ドキュメントバージョン | v2.0 |
 | 作成日 | 2026-03-19 |
 | ステータス | Draft |
-| 対応基本設計書 | docs/ja/BasicDesign.md v1.1 |
+| 対応基本設計書 | docs/ja/High_Level_Design.md v2.0 |
+
+---
+
+## v2.0 更新メモ
+
+本ドキュメントには旧 `LightGBM Ranker` 前提の記述が残っている。インフラ観点での正式前提は以下とする。
+
+- Vertex AI Custom Endpoint は v1 では `LightGBM Regressor` ベース
+- Backend へ返す推論結果は `predicted_rewards`
+- 動画候補は `video-1..video-10`
+- Vertex AI Custom Endpoint は `emotion / pose / clip / Reward Regressor` を同一コンテナに含む
+- 現時点の model deploy は Cloud Build 連携ではなく、ローカル `docker build` と `gcloud` を前提とする
+
+Backend / Model の正式契約は `docs/_internal/Phase0_Endpoint_Contract.md` を参照する。
+実装と運用の直近手順は `docs/_internal/Phase3_Model_Deployment_Runbook.md` を参照する。
 
 ---
 
@@ -1408,22 +1423,20 @@ CMD ["node", "server.js"]
 **`model/Dockerfile`：**
 
 ```dockerfile
-# model/Dockerfile
-FROM huggingface/transformers-pytorch-cpu:latest
+# model/Dockerfile（現行実装）
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . /app
 
-COPY src/ ./src/
-
-ENV PORT=8080
-EXPOSE 8080
-
-# Vertex AI Custom Prediction Routine エントリーポイント
-CMD ["uvicorn", "src.predictor:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
+
+> 補足:
+> 現時点の `model/` は `/predict`, `/health` を提供する FastAPI app として実装されている。
+> 実デプロイ前には `reward_regressor.joblib` を含む artifact 一式を `model/artifacts/`
+> に配置する必要がある。
 
 ---
 
