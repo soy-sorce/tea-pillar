@@ -74,6 +74,14 @@ class GenerateOrchestrator:
             has_user_context=ctx.user_context is not None,
             candidate_count=len(self._settings.default_candidate_video_ids),
         )
+        logger.debug(
+            "generate_request_detail",
+            session_id=ctx.session_id,
+            image_length=len(ctx.image_base64),
+            audio_length=len(ctx.audio_base64) if ctx.audio_base64 is not None else 0,
+            user_context_preview=(ctx.user_context or "")[:300],
+            candidate_video_ids=self._settings.default_candidate_video_ids,
+        )
 
         try:
             await self._firestore.create_session(ctx=ctx)
@@ -144,6 +152,15 @@ class GenerateOrchestrator:
                 template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else None,
                 error_code=exc.error_code,
                 detail=exc.detail,
+            )
+            logger.debug(
+                "generate_failed_context",
+                session_id=ctx.session_id,
+                mode=ctx.mode,
+                state_key=ctx.state_key,
+                template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else None,
+                video_gcs_uri=ctx.video_gcs_uri,
+                has_signed_url=ctx.video_signed_url is not None,
             )
             await self._safely_fail_session(ctx=ctx, exc=exc)
             raise

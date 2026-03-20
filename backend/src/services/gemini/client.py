@@ -1,6 +1,7 @@
 """Gemini client."""
 
 import asyncio
+from typing import Self
 
 import structlog
 import vertexai
@@ -18,12 +19,12 @@ logger = structlog.get_logger(__name__)
 class GeminiClient:
     """Generate the final Veo prompt from the selected template."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self: Self, settings: Settings) -> None:
         self._settings = settings
         self._prompt_builder = PromptBuilder()
 
     async def generate_prompt(
-        self,
+        self: Self,
         template_text: str,
         cat_features: CatFeatures,
         state_key: str,
@@ -49,6 +50,14 @@ class GeminiClient:
             has_user_context=user_context is not None,
             input_prompt_length=len(prompt),
         )
+        logger.debug(
+            "gemini_prompt_generation_detail",
+            project_id=self._settings.gcp_project_id,
+            location=self._settings.gcp_region,
+            timeout_seconds=self._settings.gemini_timeout,
+            template_length=len(template_text),
+            prompt_preview=prompt[:500],
+        )
 
         vertexai.init(
             project=self._settings.gcp_project_id,
@@ -65,24 +74,50 @@ class GeminiClient:
                 timeout=self._settings.gemini_timeout,
             )
         except TimeoutError as exc:
+            logger.exception(
+                "gemini_timeout_error",
+                model=self._settings.gemini_model,
+                timeout_seconds=self._settings.gemini_timeout,
+            )
             raise GeminiError(
                 message="Gemini の応答がタイムアウトしました",
                 detail=str(exc),
             ) from exc
         except DeadlineExceeded as exc:
+            logger.exception(
+                "gemini_deadline_exceeded",
+                model=self._settings.gemini_model,
+                timeout_seconds=self._settings.gemini_timeout,
+            )
             raise GeminiError(
                 message="Gemini の応答がタイムアウトしました",
                 detail=str(exc),
             ) from exc
         except RetryError as exc:
+            logger.exception(
+                "gemini_retry_error",
+                model=self._settings.gemini_model,
+                timeout_seconds=self._settings.gemini_timeout,
+            )
             raise GeminiError(
                 message="Gemini の応答がタイムアウトしました",
                 detail=str(exc),
             ) from exc
         except GoogleAPICallError as exc:
+            logger.exception(
+                "gemini_google_api_error",
+                model=self._settings.gemini_model,
+                project_id=self._settings.gcp_project_id,
+                location=self._settings.gcp_region,
+                error_type=type(exc).__name__,
+            )
             raise GeminiError(detail=str(exc)) from exc
 
         generated_text = response.text.strip()
+        logger.debug(
+            "gemini_prompt_generated_detail",
+            output_preview=generated_text[:500],
+        )
         logger.info(
             "gemini_prompt_generated",
             state_key=state_key,

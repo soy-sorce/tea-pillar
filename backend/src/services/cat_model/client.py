@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Mapping
-from typing import cast
+from typing import Self, cast
 
 import structlog
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
@@ -16,14 +16,23 @@ from src.services.cat_model.schemas import EndpointPrediction
 logger = structlog.get_logger(__name__)
 
 
+def _summarize_base64(payload: str | None) -> dict[str, object]:
+    """Return a safe payload summary for logs."""
+    return {
+        "is_present": payload is not None,
+        "length": len(payload) if payload is not None else 0,
+        "prefix": payload[:24] if payload is not None else None,
+    }
+
+
 class CatModelClient:
     """Client for the v1 custom endpoint."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self: Self, settings: Settings) -> None:
         self._settings = settings
 
     async def predict(
-        self,
+        self: Self,
         image_base64: str,
         audio_base64: str | None,
         candidate_video_ids: list[str],
@@ -52,6 +61,15 @@ class CatModelClient:
             has_audio=audio_base64 is not None,
             candidate_count=len(candidate_video_ids),
         )
+        logger.debug(
+            "cat_model_predict_request_detail",
+            project_id=self._settings.gcp_project_id,
+            location=self._settings.vertex_endpoint_location,
+            timeout_seconds=self._settings.vertex_prediction_timeout,
+            image_summary=_summarize_base64(image_base64),
+            audio_summary=_summarize_base64(audio_base64),
+            candidate_video_ids=candidate_video_ids,
+        )
 
         try:
             response = await asyncio.to_thread(
@@ -60,13 +78,35 @@ class CatModelClient:
                 timeout=self._settings.vertex_prediction_timeout,
             )
         except DeadlineExceeded as exc:
+            logger.exception(
+                "cat_model_predict_deadline_exceeded",
+                endpoint_id=self._settings.vertex_endpoint_id,
+                timeout_seconds=self._settings.vertex_prediction_timeout,
+            )
             raise VertexAITimeoutError(detail=str(exc)) from exc
         except RetryError as exc:
+            logger.exception(
+                "cat_model_predict_retry_timeout",
+                endpoint_id=self._settings.vertex_endpoint_id,
+                timeout_seconds=self._settings.vertex_prediction_timeout,
+            )
             raise VertexAITimeoutError(detail=str(exc)) from exc
         except GoogleAPICallError as exc:
+            logger.exception(
+                "cat_model_predict_google_api_error",
+                endpoint_id=self._settings.vertex_endpoint_id,
+                project_id=self._settings.gcp_project_id,
+                location=self._settings.vertex_endpoint_location,
+                error_type=type(exc).__name__,
+            )
             raise VertexAIError(detail=str(exc)) from exc
 
         prediction = response.predictions[0]
+        logger.debug(
+            "cat_model_predict_raw_response",
+            prediction_count=len(response.predictions),
+            first_prediction=prediction,
+        )
         parsed = self._parse_prediction(prediction=prediction)
         logger.info(
             "cat_model_predict_done",
@@ -78,7 +118,7 @@ class CatModelClient:
         return parsed
 
     def _parse_prediction(
-        self,
+        self: Self,
         prediction: EndpointPrediction | dict[str, object],
     ) -> CatFeatures:
         """Normalize endpoint output to CatFeatures."""
