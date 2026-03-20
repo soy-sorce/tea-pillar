@@ -1,0 +1,22 @@
+project_id                       = "gcp-hackathon-2026"
+region                           = "asia-northeast1"
+environment                      = "dev"
+
+artifact_registry_repository_id  = "nekkoflix"
+gcs_bucket_name                  = "REPLACE_ME_GCS_BUCKET"
+firestore_database_id            = "(default)"
+
+frontend_service_name            = "nekkoflix-frontend-dev"
+backend_service_name             = "nekkoflix-backend-dev"
+api_gateway_name                 = "nekkoflix-api-gateway-dev"
+api_gateway_api_id               = "nekkoflix-api-dev"
+api_gateway_config_id            = "v1"
+
+frontend_image_uri               = "REPLACE_ME_FRONTEND_IMAGE_URI"
+backend_image_uri                = "REPLACE_ME_BACKEND_IMAGE_URI"
+vertex_endpoint_resource_name    = "projects/94553428765/locations/asia-northeast1/endpoints/9155661911793074176"
+vertex_endpoint_location         = "asia-northeast1"
+
+api_gateway_jwt_issuer           = "REPLACE_ME_JWT_ISSUER"
+api_gateway_jwt_jwks_uri         = "REPLACE_ME_JWKS_URI"
+api_gateway_jwt_audience         = "REPLACE_ME_JWT_AUDIENCE"

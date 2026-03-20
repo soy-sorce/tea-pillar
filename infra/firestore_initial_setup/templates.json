@@ -1,0 +1,112 @@
+[
+  {
+    "template_id": "video-1",
+    "name": "mouse escape chase",
+    "prompt_text": "A thrilling mouse-eye view camera chasing through a house. Fast-paced movement weaving through furniture gaps, with occasional pauses to look back, featuring comical movements designed to entice a cat.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "本能刺激",
+    "source_content_ja": "「猫視点のねずみの逃走劇」: 家の中をねずみが走っている動画",
+    "source_query_ja": "家じゅうを縦横無尽に駆け回る、スリリングなネズミ視点のカメラワーク。家具の隙間をすり抜けるスピード感と、時折止まって背後を気にするような、猫を誘うコミカルな動き。",
+    "source_train_data_dir": "video-1"
+  },
+  {
+    "template_id": "video-2",
+    "name": "flapping fish on floor",
+    "prompt_text": "A cinematic close-up of a silver-scaled fish flapping irregularly on a polished wooden floor. Water droplets reflecting light and vivid scale textures creating a dynamic sense of motion to trigger hunting instincts.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "本能刺激",
+    "source_content_ja": "魚が床をぴちぴちしている",
+    "source_query_ja": "磨き上げられた木目の床の上で、銀色に輝く一匹の魚が不規則に跳ねるクローズアップ映像。水しぶきが光を反射し、鱗の質感が際立つ、野生の本能を呼び覚ますような躍動感。",
+    "source_train_data_dir": "video-2"
+  },
+  {
+    "template_id": "video-3",
+    "name": "sleeping cat comfort",
+    "prompt_text": "A cinematic shot of a fluffy cat curled up on a sunlit windowsill in the afternoon. Subtle movements of ears and the tip of the tail twitching in sync with deep, calm breathing, filled with a sense of absolute peace.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "リラックス",
+    "source_content_ja": "猫が寝ている動画",
+    "source_query_ja": "柔らかな午後の光が差し込む窓辺。心地よい毛並みの猫が丸まって眠り、呼吸に合わせて耳や尻尾の先がかすかにピクピクと動く、極上の安心感に満ちたシネマティックな映像。",
+    "source_train_data_dir": "video-3"
+  },
+  {
+    "template_id": "video-4",
+    "name": "glowing dandelion drift",
+    "prompt_text": "A mystical visual in a deep navy, silent space. Glowing dandelion seeds slowly expanding and contracting in sync with a rhythmic pulse, filling the screen like a floating dream.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "リラックス",
+    "source_content_ja": "「たゆたう綿毛のダンス」: 真っ暗な背景に、タンポポの綿毛のような光る粒子が、猫の呼吸に合わせてゆっくりと浮沈し、画面を埋め尽くしていく。",
+    "source_query_ja": "深い紺色の静寂な空間。光り輝くタンポポの綿毛が、目に見えないリズム（猫の呼吸）に同期して、ゆっくりと膨らんだり縮んだりしながら画面を埋め尽くす幻想的なビジュアル。",
+    "source_train_data_dir": "video-4"
+  },
+  {
+    "template_id": "video-5",
+    "name": "weightless yarn balls",
+    "prompt_text": "A surreal physics simulation in a weightless white room. Multi-colored pastel yarn balls colliding in slow motion, unraveling into kaleidoscopic patterns that expand across the frame.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "不思議",
+    "source_content_ja": "「重力のない毛糸玉」: 無数のカラフルな毛糸玉が、ふわふわと浮遊しながら衝突し、弾ける。",
+    "source_query_ja": "無重力の真っ白な部屋で、色とりどりのパステルカラーの毛糸玉たちがスローモーションで衝突し、ふわふわと解けながら万華鏡のように広がっていく、不思議で楽しい物理現象。",
+    "source_train_data_dir": "video-5"
+  },
+  {
+    "template_id": "video-6",
+    "name": "floating cat kibble orbit",
+    "prompt_text": "Surreal gourmet footage set against deep space. Triangular cat kibbles rotating like planets, lifting out of a bowl and floating upward, their crunchy texture sparkling like stardust.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "不思議",
+    "source_content_ja": "「重力を失ったキャットフード」: カリカリの粒が器からこぼれ落ちず、そのまま上空へゆっくりと昇っていき、宇宙空間のような背景で惑星のように回転する。",
+    "source_query_ja": "宇宙空間を背景に、三角形のキャットフードが惑星のように自転しながら、器を離れてゆっくりと上昇していく。カリカリとした質感が星屑のように輝く、シュールなグルメ映像。",
+    "source_train_data_dir": "video-6"
+  },
+  {
+    "template_id": "video-7",
+    "name": "cat tower across screen",
+    "prompt_text": "A cat inside the screen looking curiously into the lens (at the real cat), gently reaching out its paw as if trying to pass a favorite toy across the boundary for an intimate interaction.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "インタラクション",
+    "source_content_ja": "「画面越しのキャットタワー」: 画面の中に映る猫が、こちら（現実の猫）をじっと見つめた後、おもちゃを差し出してくる。",
+    "source_query_ja": "画面の中にいる一匹の猫が、レンズ（現実の猫）を興味津々に覗き込み、前足でお気に入りのおもちゃを優しくこちら側へ差し出そうとする、境界線を超えた親密なやり取り。",
+    "source_train_data_dir": "video-7"
+  },
+  {
+    "template_id": "video-8",
+    "name": "portal window treat",
+    "prompt_text": "The screen becomes a \"magic window\" made of old brick. From a warm room on the other side, a human hand slowly appears, offering a delicious treat to the cat on this side of the window.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "インタラクション",
+    "source_content_ja": "「ポータル・ウィンドウ（Portal Window）」画面が「窓」になり、その向こう側に人間の手が「おやつ」を持って現れる。",
+    "source_query_ja": "画面が古いレンガ造りの「魔法の窓」になり、向こう側の温かな部屋から人間の手がゆっくりと現れ、こちら側の猫においしそうなおやつを差し出す、別世界と繋がる不思議な窓。",
+    "source_train_data_dir": "video-8"
+  },
+  {
+    "template_id": "video-9",
+    "name": "colossal eye in storm",
+    "prompt_text": "A stormy night with violently swirling dark thunderclouds. In the darkness, intermittent flashes of intense lightning reveal a colossal, god-sized \"creature's eye\" staring down from a rift in the clouds. The eye has a slit pupil like a reptile and a moist, glowing texture. Each flash is accompanied by bone-shaking, low-frequency thunder. Cinematic horror aesthetic, hyper-realistic, 4K, sharp contrast between eerie silence and deafening roars.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "恐怖",
+    "source_content_ja": "雲の隙間から覗く巨大な瞳",
+    "source_query_ja": "嵐の夜、激しく渦巻く黒い雷雲。画面全体が暗い中、時折激しい稲光が走り、その瞬間にだけ雲の切れ間から空を覆い尽くすほど巨大な「生物の瞳」がこちらを凝視しているのが見える。瞳は爬虫類のように縦に割れており、湿った質感で怪しく光る。稲光と同時に、腹に響くような重低音の雷鳴が轟く。シネマティックなホラー演出、超写実的、4K、不気味な静寂と爆音の対比",
+    "source_train_data_dir": "video-9"
+  },
+  {
+    "template_id": "video-10",
+    "name": "cat inferno",
+    "prompt_text": "An endless sea of crimson lava and jagged black obsidian cliffs. The sky is a blood-red hue with glowing embers falling like snow. From the background, hundreds of formless, giant shadows crawl forward, emitting eerie, guttural growls. Every \"moving object\" that a cat would normally chase is covered in sharp thorns or flickering flames, creating a sense of unreachable despair. Dystopian hellscape, dark fantasy, overwhelming sense of dread.",
+    "is_active": true,
+    "auto_generated": false,
+    "category": "恐怖",
+    "source_content_ja": "地獄 (The Cat's Inferno)",
+    "source_query_ja": "どこまでも続く真っ赤な溶岩の海と、黒い岩石の断崖。空は血のような赤色で、火の粉が雪のように舞い散る。画面の奥からは、実体のない巨大な影が何百も這い出してき、不気味なうなり声を上げている。猫が好む「動くもの」がすべて鋭い棘や炎に包まれており、触れることができない絶望感。ディストピア的な地獄の風景、ダークファンタジー、圧倒的な威圧感。",
+    "source_train_data_dir": "video-10"
+  }
+]
