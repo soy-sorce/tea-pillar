@@ -1,1 +1,1 @@
-"""Service layer package."""
+"""Business services."""
