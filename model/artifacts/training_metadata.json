@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "emotion_model_id": "semihdervis/cat-emotion-classifier",
+  "pose_model_id": "usyd-community/vitpose-plus-small",
+  "clip_model_id": "openai/clip-vit-base-patch32",
+  "audio_model_id": "IsolaHGVIS/Cat-Meow-Classification",
+  "regressor_type": "lightgbm_regressor",
+  "candidate_video_count": 10,
+  "reward_formula_version": "reward_v1",
+  "training_rows": 13,
+  "cats": 2,
+  "videos": 10,
+  "reward_mean": 0.046349299758456426,
+  "reward_std": 0.4170137492950301
+}
