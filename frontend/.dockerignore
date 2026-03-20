@@ -1,9 +1,9 @@
-node_modules/
-dist/
-build/
-out/
+.git
+.gitignore
+node_modules
+dist
 .env
 .env.*
-*.log
+coverage
 .DS_Store
-Thumbs.db
+README.md
