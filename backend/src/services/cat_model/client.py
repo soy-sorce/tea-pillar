@@ -46,6 +46,12 @@ class CatModelClient:
             "audio_base64": audio_base64,
             "candidate_video_ids": candidate_video_ids,
         }
+        logger.info(
+            "cat_model_predict_start",
+            endpoint_id=self._settings.vertex_endpoint_id,
+            has_audio=audio_base64 is not None,
+            candidate_count=len(candidate_video_ids),
+        )
 
         try:
             response = await asyncio.to_thread(
@@ -61,7 +67,15 @@ class CatModelClient:
             raise VertexAIError(detail=str(exc)) from exc
 
         prediction = response.predictions[0]
-        return self._parse_prediction(prediction=prediction)
+        parsed = self._parse_prediction(prediction=prediction)
+        logger.info(
+            "cat_model_predict_done",
+            emotion_label=parsed.emotion_label,
+            clip_top_label=parsed.clip_top_label,
+            meow_label=parsed.meow_label or "unknown",
+            predicted_reward_count=len(parsed.predicted_rewards),
+        )
+        return parsed
 
     def _parse_prediction(
         self,

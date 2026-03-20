@@ -42,6 +42,13 @@ class GeminiClient:
             state_key=state_key,
             user_context=user_context,
         )
+        logger.info(
+            "gemini_prompt_generation_start",
+            model=self._settings.gemini_model,
+            state_key=state_key,
+            has_user_context=user_context is not None,
+            input_prompt_length=len(prompt),
+        )
 
         vertexai.init(
             project=self._settings.gcp_project_id,
@@ -76,5 +83,9 @@ class GeminiClient:
             raise GeminiError(detail=str(exc)) from exc
 
         generated_text = response.text.strip()
-        logger.info("gemini_prompt_generated", prompt_length=len(generated_text))
+        logger.info(
+            "gemini_prompt_generated",
+            state_key=state_key,
+            output_prompt_length=len(generated_text),
+        )
         return generated_text

@@ -1,0 +1,51 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-frontend
+    args:
+      - build
+      - -t
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:$COMMIT_SHA"
+      - -t
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:latest"
+      - -f
+      - frontend/Dockerfile
+      - frontend/
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-frontend-sha
+    waitFor:
+      - build-frontend
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:$COMMIT_SHA"
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-frontend-latest
+    waitFor:
+      - build-frontend
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:latest"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: deploy-frontend
+    waitFor:
+      - push-frontend-sha
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "${_SERVICE_NAME}"
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --quiet
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:latest"
+
+substitutions:
+  _REGION: "asia-northeast1"
+  _REPOSITORY: "nekkoflix"
+  _SERVICE_NAME: "nekkoflix-frontend-prod"

@@ -2,14 +2,14 @@
 
 | 項目 | 内容 |
 |------|------|
-| ドキュメントバージョン | v2.0 |
-| 作成日 | 2026-03-19 |
+| ドキュメントバージョン | v3.0 |
+| 作成日 | 2026-03-21 |
 | ステータス | Draft |
 | 対応基本設計書 | docs/ja/High_Level_Design.md v2.0 |
 
 ---
 
-## v2.0 更新メモ
+## v3.0 更新メモ
 
 本ドキュメントには旧 `LightGBM Ranker` 前提の記述が残っている。インフラ観点での正式前提は以下とする。
 
@@ -18,6 +18,11 @@
 - 動画候補は `video-1..video-10`
 - Vertex AI Custom Endpoint は `emotion / pose / clip / Reward Regressor` を同一コンテナに含む
 - 現時点の model deploy は Cloud Build 連携ではなく、ローカル `docker build` と `gcloud` を前提とする
+- Terraform は GCP リソース作成・設定・接続を担い、Frontend / Backend / Model の image build / push は担わない
+- 初回導入は `prod` 単独を前提とし、`dev` は将来追加可能な構成として保持する
+- `API Gateway` は入口の粗い制御と認証を担い、`FastAPI` は通過後の細かい制御とビジネスロジックを担う
+- API Gateway では JWT を必須とし、必要に応じて API key / quota を追加可能な構成にする
+- MVP 初期では API Gateway の厳格なレート制限は入れず、Cloud Run 側のサイズ・同時実行数・アプリ制御で守る
 
 Backend / Model の正式契約は `docs/_internal/Phase0_Endpoint_Contract.md` を参照する。
 実装と運用の直近手順は `docs/_internal/Phase3_Model_Deployment_Runbook.md` を参照する。
@@ -50,15 +55,15 @@ graph TB
     end
 
     subgraph CloudRun_FE["Cloud Run (Frontend)"]
-        FE["Next.js / React\nnekkoflix-frontend\nmin=0 / max=3"]
+        FE["Next.js / React\nnekkoflix-frontend-prod\nmin=0 / max=2"]
     end
 
     subgraph APIGateway["Cloud API Gateway"]
-        GW["nekkoflix-api-gateway\nJWT検証 / レート制限\nOpenAPI 2.0"]
+        GW["nekkoflix-api-gateway-prod\nJWT検証 / API key拡張余地\n粗い入口制御 / OpenAPI 2.0"]
     end
 
     subgraph CloudRun_BE["Cloud Run (Backend)"]
-        BE["FastAPI\nnekkoflix-backend\nmin=1 / max=5 / timeout=360s"]
+        BE["FastAPI\nnekkoflix-backend-prod\nmin=0 / max=2 / timeout=360s"]
         UCB["UCB Bandit\nインプロセス"]
         BE --- UCB
     end
@@ -74,7 +79,7 @@ graph TB
     end
 
     subgraph GCS["Cloud Storage"]
-        Bucket["nekkoflix-videos\nasia-northeast1\nライフサイクル: 1日後削除"]
+        Bucket["nekkoflix-videos-prod-94553428765\nasia-northeast1\nライフサイクル: 1日後削除"]
     end
 
     Browser -->|HTTPS| FE
@@ -88,6 +93,38 @@ graph TB
     BE -->|Signed URL発行| Bucket
     Bucket -.->|Signed URL経由| Browser
 ```
+
+### 1.1.1 API Gateway と FastAPI の責務分担
+
+本設計では、入口制御とアプリケーション制御を分離する。
+
+#### `API Gateway` が担うもの
+
+- JWT 検証
+- API key ベース制御の導入余地
+- 全体トラフィックに対する粗い入口制御
+- 将来の quota / rate limit の適用ポイント
+- 入口でのスパム抑制
+
+要するに、`API Gateway` は「そもそも通すかどうか」を担当する。
+
+#### `FastAPI` が担うもの
+
+- ユーザー単位の制御
+- エンドポイント単位の制御
+- 高コスト処理の制御
+- セッション状態整合
+- 重複実行防止
+- Bandit / Firestore / Vertex AI / Gemini / Veo の業務ロジック
+
+要するに、`FastAPI` は「通した後をどう制御するか」を担当する。
+
+#### MVP 初期方針
+
+- API Gateway では JWT を必須にする
+- API key / quota は導入余地を残す
+- ただし初回は厳格なレートリミットを入れず、Cloud Run のサイズとアプリ制御で守る
+- `/generate` のような高コスト API の細かい制御は FastAPI 側で担う
 
 ### 1.2 データフロー図 — POST /generate
 
@@ -106,18 +143,18 @@ sequenceDiagram
 
     B->>FE: ユーザー操作（画像・音声・コンテキスト入力）
     FE->>GW: POST /generate<br/>{ image_base64, audio_base64, user_context }
-    GW->>GW: JWT検証・レート制限チェック
+    GW->>GW: JWT検証・入口制御チェック
     GW->>BE: 転送（検証済み）
 
     BE->>FS: sessions/{id} status=generating 書き込み
     BE->>EP: 推論リクエスト<br/>{ image_base64, audio_base64 }
     EP->>EP: 猫4モデル推論<br/>emotion / meow / pose / clip
-    EP->>EP: LightGBM Ranker<br/>テンプレートスコア算出
-    EP-->>BE: { features, ranker_scores[11] }
+    EP->>EP: LightGBM Regressor<br/>テンプレートスコア算出
+    EP-->>BE: { features, aux_labels, predicted_rewards }
 
     BE->>BE: 状態キー生成
     BE->>FS: bandit_table 読み込み（選択回数）
-    BE->>BE: UCB探索ボーナス加算<br/>final_score = ranker_score + α√(2lnN/n)
+    BE->>BE: UCB探索ボーナス加算<br/>final_score = predicted_reward + α√(2lnN/n)
     BE->>BE: argmax → template_id 選択
 
     BE->>GM: プロンプト再構築リクエスト<br/>{ template, state_key, user_context }
@@ -152,7 +189,7 @@ sequenceDiagram
 
     B->>FE: フィードバックボタン選択<br/>（😺 / 😐 / 😾）
     FE->>GW: POST /feedback<br/>{ session_id, reaction }
-    GW->>GW: JWT検証
+    GW->>GW: JWT検証・入口制御チェック
     GW->>BE: 転送
 
     BE->>BE: reaction → reward 変換<br/>good=+1.0 / neutral=0.0 / bad=-0.5
@@ -334,17 +371,17 @@ variable "region" {
 }
 
 variable "environment" {
-  description = "Environment name (dev / prod)"
+  description = "Environment name. Initial rollout uses prod only."
   type        = string
 }
 
 variable "backend_image" {
-  description = "Backend Docker image URI (Artifact Registry)"
+  description = "Backend Docker image URI. Built and pushed outside Terraform."
   type        = string
 }
 
 variable "frontend_image" {
-  description = "Frontend Docker image URI (Artifact Registry)"
+  description = "Frontend Docker image URI. Built and pushed outside Terraform."
   type        = string
 }
 
@@ -372,15 +409,15 @@ variable "gcs_video_bucket" {
 }
 ```
 
-**`infra/terraform/environments/dev/terraform.tfvars`（dev用実値・gitignore対象）：**
+**`infra/terraform/environments/prod/terraform.tfvars`（prod用実値・gitignore対象）：**
 
 ```hcl
-project_id       = "nekkoflix-dev"
+project_id       = "gcp-hackathon-2026"
 region           = "asia-northeast1"
-environment      = "dev"
-backend_image    = "asia-northeast1-docker.pkg.dev/nekkoflix-dev/nekkoflix/backend:latest"
-frontend_image   = "asia-northeast1-docker.pkg.dev/nekkoflix-dev/nekkoflix/frontend:latest"
-gcs_video_bucket = "nekkoflix-videos-dev"
+environment      = "prod"
+backend_image    = "asia-northeast1-docker.pkg.dev/gcp-hackathon-2026/nekkoflix/backend:latest"
+frontend_image   = "asia-northeast1-docker.pkg.dev/gcp-hackathon-2026/nekkoflix/frontend:latest"
+gcs_video_bucket = "nekkoflix-videos-prod-94553428765"
 ```
 
 ### 2.4 環境別ルートモジュール
@@ -536,11 +573,11 @@ terraform destroy -var-file="terraform.tfvars"
 
 | パラメータ | 値 | 備考 |
 |---|---|---|
-| name | `nekkoflix-frontend-{env}` | |
+| name | `nekkoflix-frontend-prod` | 初回導入は prod 単独 |
 | region | `asia-northeast1` | |
-| image | Artifact Registryの最新イメージ | Cloud Buildがpush後に更新 |
-| min-instances | `0` | 審査員デモ前に手動で1に上げることも可 |
-| max-instances | `3` | |
+| image | Artifact Registry 上の frontend image URI | build / push は Terraform 外 |
+| min-instances | `0` | 初回はコスト優先 |
+| max-instances | `2` | MVP 初期の控えめ設定 |
 | memory | `512Mi` | |
 | cpu | `1` | |
 | timeout | `60s` | |
@@ -614,37 +651,75 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
 
 | パラメータ | 値 | 備考 |
 |---|---|---|
-| name | `nekkoflix-backend-{env}` | |
+| name | `nekkoflix-backend-prod` | 初回導入は prod 単独 |
 | region | `asia-northeast1` | |
-| min-instances | `1` | コールドスタート防止（ハッカソン当日必須） |
-| max-instances | `5` | |
-| memory | `2Gi` | 猫モデル推論の結果処理・Gemini応答バッファ |
-| cpu | `2` | |
+| min-instances | `0` | 初回はコスト優先。必要なら後で `1` に上げる |
+| max-instances | `2` | MVP 初期の控えめ設定 |
+| memory | `1Gi` | 初期値 |
+| cpu | `1` | 初期値 |
 | timeout | `360s` | Veo3生成待機 |
-| ingress | `INGRESS_TRAFFIC_INTERNAL_ONLY` | API Gatewayからのみ受け付け |
-| concurrency | `10` | 生成処理は重いため低めに設定 |
-| vpc_connector | `nekkoflix-vpc-connector` | Direct VPC Egress |
+| ingress | `API Gateway からの疎通を確認できる設定` | `private` 寄りを目標に段階適用 |
+| concurrency | `1` 推奨 | `/generate` が高コストなため |
+| vpc_connector | `nekkoflix-vpc-connector-prod` | Direct VPC Egress |
 
 **環境変数（Secret Manager参照なし・Cloud Run直接設定）：**
 
 | 変数名 | 値 | 説明 |
 |---|---|---|
-| `GCP_PROJECT_ID` | `nekkoflix-{env}` | GCPプロジェクトID |
+| `GCP_PROJECT_ID` | `gcp-hackathon-2026` | GCPプロジェクトID |
 | `GCP_REGION` | `asia-northeast1` | リージョン |
-| `VERTEX_ENDPOINT_ID` | `{endpoint-id}` | 猫モデルEndpoint ID |
+| `VERTEX_ENDPOINT_ID` | `projects/94553428765/locations/asia-northeast1/endpoints/9155661911793074176` | 猫モデルEndpoint resource name |
 | `VERTEX_ENDPOINT_LOCATION` | `asia-northeast1` | |
 | `GEMINI_MODEL` | `gemini-1.5-flash` | |
 | `VEO_MODEL` | `veo-3.1-fast` | |
-| `GCS_BUCKET_NAME` | `nekkoflix-videos-{env}` | |
+| `GCS_BUCKET_NAME` | `nekkoflix-videos-prod-94553428765` | |
 | `GCS_SIGNED_URL_EXPIRATION_HOURS` | `1` | |
 | `FIRESTORE_DATABASE_ID` | `(default)` | |
-| `ENVIRONMENT` | `dev` / `prod` | |
+| `ENVIRONMENT` | `prod` | 初回導入では `prod` 固定 |
+
+**補足方針：**
+
+- backend は `allow_unauthenticated = false`
+- API Gateway Service Account に `roles/run.invoker` を付与する
+- ingress は `private only` を理想値とするが、まずは API Gateway との疎通を壊さない構成を優先する
+- 高コスト処理である `/generate` は、アプリ内での追加制御対象とする
 
 ---
 
 ### 3.3 Cloud API Gateway
 
 **設定ファイル：** `infra/apigateway/openapi.yaml`
+
+#### 3.3.1 基本方針
+
+- API Gateway は入口の粗い制御を担う
+- JWT は必須にする
+- API key を追加可能な構成にする
+- ただし MVP 初期では厳格なレート制限は入れない
+- 細かい制御は FastAPI 側で担う
+
+#### 3.3.2 API Gateway が担う責務
+
+- JWT 検証
+- 将来の API key ベース制御
+- 全体トラフィックに対する粗い入口制御
+- 将来の quota / rate limit 適用ポイント
+- 入口でのスパム抑制
+
+#### 3.3.3 FastAPI が担う責務
+
+- ユーザー単位の制御
+- エンドポイント単位の制御
+- 高コスト処理の制御
+- セッション状態整合
+- 重複実行防止
+
+#### 3.3.4 MVP 初期方針
+
+- `API Gateway`: JWT を必須とする
+- `API Gateway`: API key / quota は導入余地を残す
+- `API Gateway`: 厳格な rate limit は初期では入れない
+- `FastAPI`: `/generate` のような高コスト API の細かい制御を担う
 
 ```yaml
 # infra/apigateway/openapi.yaml
@@ -698,8 +773,6 @@ paths:
           description: 生成成功
         "401":
           description: 認証エラー
-        "429":
-          description: レート制限超過
         "502":
           description: Backend エラー
 
@@ -751,6 +824,28 @@ definitions:
         enum: [good, neutral, bad]
 ```
 
+#### 3.3.5 JWT と API key の扱い
+
+- JWT は API Gateway で検証する
+- 想定する JWT は Google ID token を基本とする
+- `x-google-issuer` `x-google-jwks_uri` `x-google-audiences` は OpenAPI に設定する
+- API key は必要に応じて後から導入できるようにする
+- quota / rate limit は API key ベースで後続追加する余地を残す
+
+#### 3.3.6 レート制限の考え方
+
+本システムでは、レート制限を一箇所に寄せ切らず、次のように分担する。
+
+- `API Gateway`: 粗い入口制御
+- `FastAPI`: 高コスト API やビジネスロジックに近い細かい制御
+
+MVP 初期では、厳しすぎる `429` を避けるため、Gateway 側に強い rate limit は入れない。
+代わりに以下で守る。
+
+- backend の `max_instances` を小さめにする
+- backend の `concurrency` を小さめにする
+- FastAPI 側で高コスト処理の追加制御を行う
+
 **Terraform定義：**
 
 ```hcl
@@ -796,9 +891,15 @@ output "gateway_url" {
 
 ---
 
-### 3.4 Vertex AI Endpoint（猫モデル + LightGBM Ranker）
+### 3.4 Vertex AI Endpoint（猫モデル + LightGBM Regressor）
 
-**Terraform管理範囲：** Endpointリソース（器）のみをTerraformで作成。モデルのアップロードとデプロイは `script/deploy_model_endpoint.py` で実施。
+**Terraform管理範囲：** 初回は既存 Endpoint を参照するための設定受け渡しと権限付与を Terraform で管理する。モデルのアップロードとデプロイは `script/deploy_model_endpoint.py` で実施する。
+
+**運用方針：**
+
+- 初回は既存の deployed endpoint を backend から利用する
+- Terraform は build / push / deploy を担わない
+- 将来的に endpoint 作成まで Terraform に寄せるかは別判断とする
 
 ```hcl
 # modules/vertex_ai/main.tf
@@ -1030,6 +1131,12 @@ resource "google_artifact_registry_repository" "nekkoflix" {
 | backend | `{git-sha}` / `latest` | `abc1234` / `latest` |
 | cat-model | `{git-sha}` / `stable` | `abc1234` / `stable` |
 
+**補足：**
+
+- Terraform は repository 作成を担う
+- image build / push は Cloud Build または手動運用で行う
+- Cloud Run には `backend_image_uri` / `frontend_image_uri` を tfvars で渡す
+
 ---
 
 ## 4. ネットワーク詳細
@@ -1045,21 +1152,21 @@ resource "google_compute_network" "nekkoflix" {
 }
 
 resource "google_compute_subnetwork" "backend" {
-  name          = "nekkoflix-backend-subnet"
+  name          = "nekkoflix-backend-subnet-prod"
   project       = var.project_id
   region        = var.region
   network       = google_compute_network.nekkoflix.id
-  ip_cidr_range = "10.0.0.0/24"
+  ip_cidr_range = "10.20.0.0/24"
 
   private_ip_google_access = true  # Cloud APIへのプライベートアクセス
 }
 
 # Serverless VPC Access Connector（Cloud Run → VPC）
 resource "google_vpc_access_connector" "nekkoflix" {
-  name          = "nekkoflix-vpc-connector"
+  name          = "nekkoflix-vpc-connector-prod"
   project       = var.project_id
   region        = var.region
-  ip_cidr_range = "10.8.0.0/28"
+  ip_cidr_range = "10.20.1.0/28"
   network       = google_compute_network.nekkoflix.name
   min_instances = 2
   max_instances = 3
@@ -1121,6 +1228,12 @@ resource "google_compute_firewall" "deny_all_ingress" {
 ### 4.4 Private Google Access
 
 VPC内からCloud API（Vertex AI・Firestore・GCS）へはプライベートIPで接続するため、サブネットの `private_ip_google_access = true` を設定済み（4.1参照）。
+
+**補足方針：**
+
+- 初回導入は `prod` 単独
+- VPC / subnet / connector も `prod` を前提とした命名にする
+- 将来的に `dev` を追加する場合は同じ命名規則を横展開する
 
 ---
 
@@ -1222,6 +1335,27 @@ resource "google_project_iam_member" "cloudbuild_run_deploy" {
 | GCPサービスアカウントキー | 不要（ADC使用） | 不要のまま |
 | APIキー類 | Cloud Run環境変数 | Secret Manager |
 | Firestore認証 | ADC | ADCのまま |
+
+### 5.4 API Gateway / FastAPI のセキュリティ責務分担
+
+セキュリティと制御の責務は次のように分担する。
+
+#### API Gateway
+
+- JWT 検証
+- API key ベース制御の導入余地
+- 全体トラフィックに対する粗い入口制御
+- 将来の quota / rate limit 適用ポイント
+
+#### FastAPI
+
+- ユーザー単位制御
+- エンドポイント単位制御
+- 高コスト処理制御
+- セッション整合
+- 重複実行防止
+
+このため、MVP 初期では API Gateway に厳しすぎる rate limit を置かず、必要最小限の認証と入口制御を行い、アプリ固有の制御は FastAPI で担う。
 
 ---
 
@@ -1555,7 +1689,7 @@ logger.error("veo_failed", session_id=session_id, error=str(e))
 
 | サービス | 想定使用量 | 概算コスト |
 |---|---|---|
-| Cloud Run Backend（min=1, n1相当） | 8時間 × 1インスタンス | ~$0.20 |
+| Cloud Run Backend（min=0, 1vCPU / 1Gi 想定） | リクエストベース | ~$0.05〜0.20 |
 | Cloud Run Frontend（min=0） | リクエストベース | ~$0.05 |
 | Vertex AI Endpoint（n1-standard-4, min=1） | 8時間 × 1インスタンス | ~$1.20 |
 | Gemini 1.5 flash | 〜50回生成 | ~$0.10 |
@@ -1565,7 +1699,7 @@ logger.error("veo_failed", session_id=session_id, error=str(e))
 | Cloud Storage | 〜20本の動画（数十MB） | ~$0.01 |
 | **合計** | | **~$8.50** |
 
-> **コスト最適化のポイント：** デモ終了後に `terraform destroy` でCloud Run・Vertex AI EndpointのminInstancesを0/0にする。Vertex AI Endpointはデプロイ解除する。
+> **コスト最適化のポイント：** 初回は backend / frontend とも `minInstances=0` を基本とし、必要ならデモ直前に backend のみ `1` に上げる。デモ終了後は `terraform destroy` または設定縮退を行う。Vertex AI Endpointは必要に応じてデプロイ解除する。
 
 ### 9.2 開発期間中の継続コスト
 
@@ -1587,7 +1721,9 @@ logger.error("veo_failed", session_id=session_id, error=str(e))
 | TBD-1 | openapi.yaml のホスト名 | API Gatewayデプロイ後に確定するhostname | 高（デプロイ後即確定） |
 | TBD-2 | terraform.tfvarsの共有方法 | gitignore対象のtfvarsをチームで安全に共有する方法（1Password / Secret Manager / 直接共有） | 高 |
 | TBD-3 | Vertex AI EndpointのGPU移行閾値 | 推論レイテンシ > 20秒の場合にT4へ移行。移行判断のためのテスト実施 | 中 |
-| TBD-4 | API Gatewayのレート制限値 | デモ中の想定リクエスト数から設定値を決定 | 中 |
+| TBD-4 | API Gatewayのレート制限値 | MVP 初期は厳格な制限を入れず、実測後に quota / rate limit を決定 | 中 |
 | TBD-5 | Firestoreセキュリティルールの適用 | `firestore.rules` のデプロイ手順をTerraformまたはFirebase CLIで整備 | 中 |
 | TBD-6 | Cloud Buildトリガーのファイルフィルタ設定 | `backend/**` 変更時のみ `cloudbuild-backend.yaml` を発火させるGCPコンソール設定 | 低 |
 | TBD-7 | ローカル開発時のVertex AI Endpointモック | `docker-compose.yml` にモックサーバーを追加するか、デプロイ済みEndpointをローカルから直接叩くか | 低 |
+| TBD-8 | API key の導入タイミング | JWT のみで開始し、必要なら API key + quota を追加するかを判断 | 中 |
+| TBD-9 | Backend ingress の最終値 | API Gateway 経由疎通を確認したうえで private 寄り設定に固定する | 中 |
