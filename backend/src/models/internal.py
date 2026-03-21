@@ -41,3 +41,4 @@ class GenerationContext:
     generated_prompt: str | None = None
     video_gcs_uri: str | None = None
     video_signed_url: str | None = None
+    fallback_used: bool = False

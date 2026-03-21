@@ -149,6 +149,7 @@ async def test_create_complete_and_fail_session(monkeypatch: MonkeyPatch) -> Non
     assert sessions["session-1"]["status"] == "failed"
     assert sessions["session-1"]["state_key"] == "unknown_happy_curious_cat"
     assert sessions["session-1"]["template_id"] == "video-1"
+    assert sessions["session-1"]["fallback_used"] is False
     assert sessions["session-1"]["video_gcs_uri"] == "gs://bucket/video.mp4"
     assert sessions["session-1"]["error"] == "boom"
 

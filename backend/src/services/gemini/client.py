@@ -26,8 +26,8 @@ class GeminiClient:
     async def generate_prompt(
         self: Self,
         template_text: str,
-        cat_features: CatFeatures,
-        state_key: str,
+        cat_features: CatFeatures | None,
+        state_key: str | None,
         user_context: str | None,
     ) -> str:
         """Call Gemini and return only the prompt text."""

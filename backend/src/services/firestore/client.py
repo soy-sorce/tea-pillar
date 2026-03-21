@@ -51,6 +51,7 @@ class FirestoreClient:
             "status": "done",
             "state_key": ctx.state_key,
             "template_id": ctx.bandit_selection.template_id if ctx.bandit_selection else None,
+            "fallback_used": ctx.fallback_used,
             "video_gcs_uri": ctx.video_gcs_uri,
             "completed_at": firestore.SERVER_TIMESTAMP,
         }

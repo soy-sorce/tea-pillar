@@ -76,3 +76,19 @@ def test_build_sorts_feature_lines_and_includes_constraints() -> None:
     assert prompt.index("- a_feature: 0.9000") < prompt.index("- z_feature: 0.1000")
     assert "あなたは猫向け動画のプロンプトクリエイターです。" in prompt
     assert "- 動画は音声なし" in prompt
+
+
+def test_build_supports_fallback_without_cat_features() -> None:
+    builder = PromptBuilder()
+
+    prompt = builder.build(
+        template_text="A glowing toy floating in the air.",
+        cat_features=None,
+        state_key=None,
+        user_context=None,
+    )
+
+    assert "A glowing toy floating in the air." in prompt
+    assert "[状態キー]\nfallback" in prompt
+    assert "- emotion_label: unknown" in prompt
+    assert "（利用不可: Vertex AI fallback）" in prompt

@@ -21,27 +21,37 @@ class PromptBuilder:
     def build(
         self,
         template_text: str,
-        cat_features: CatFeatures,
-        state_key: str,
+        cat_features: CatFeatures | None,
+        state_key: str | None,
         user_context: str | None,
     ) -> str:
         """Assemble the prompt from model outputs and template text."""
         context_section = user_context if user_context else "（指定なし）"
-        feature_lines = "\n".join(
-            f"- {key}: {value:.4f}" for key, value in sorted(cat_features.features.items())
-        )
+        if cat_features is None:
+            labels_section = """\
+- emotion_label: unknown
+- clip_top_label: unknown
+- meow_label: unknown"""
+            feature_lines = "（利用不可: Vertex AI fallback）"
+        else:
+            labels_section = f"""\
+- emotion_label: {cat_features.emotion_label}
+- clip_top_label: {cat_features.clip_top_label}
+- meow_label: {cat_features.meow_label or "unknown"}"""
+            feature_lines = "\n".join(
+                f"- {key}: {value:.4f}" for key, value in sorted(cat_features.features.items())
+            )
+        state_key_section = state_key or "fallback"
         return f"""{_SYSTEM_INSTRUCTION}
 
 [テンプレート]
 {template_text}
 
 [状態キー]
-{state_key}
+{state_key_section}
 
 [補助ラベル]
-- emotion_label: {cat_features.emotion_label}
-- clip_top_label: {cat_features.clip_top_label}
-- meow_label: {cat_features.meow_label or "unknown"}
+{labels_section}
 
 [猫状態特徴量]
 {feature_lines}

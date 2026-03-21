@@ -13,6 +13,7 @@ class SessionDocument(BaseModel):
     status: str
     state_key: str | None = None
     template_id: str | None = None
+    fallback_used: bool | None = None
     user_context: str | None = None
     video_gcs_uri: str | None = None
     error: str | None = None
