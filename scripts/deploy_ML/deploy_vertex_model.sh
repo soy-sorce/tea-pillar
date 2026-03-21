@@ -16,10 +16,13 @@ MAX_REPLICA_COUNT="${MAX_REPLICA_COUNT:-1}"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/deploy_ML/deploy_vertex_model.sh --artifact-registry-repo <repo>
+  bash scripts/deploy_ML/deploy_vertex_model.sh --artifact-registry-repo <repo> [--model-image-tag <tag>] [--vertex-model-display-name <name>]
 
 Options:
   --artifact-registry-repo, --repo   Artifact Registry repository name
+  --model-image-tag, --tag           Docker image tag (default: v0)
+  --vertex-model-display-name, --display-name
+                                    Vertex Model display name (default: nekkoflix-model-v0)
 EOF
 }
 
@@ -27,6 +30,14 @@ while (($# > 0)); do
   case "$1" in
     --artifact-registry-repo|--repo)
       ARTIFACT_REGISTRY_REPO="${2:-}"
+      shift 2
+      ;;
+    --model-image-tag|--tag)
+      MODEL_IMAGE_TAG="${2:-}"
+      shift 2
+      ;;
+    --vertex-model-display-name|--display-name)
+      VERTEX_MODEL_DISPLAY_NAME="${2:-}"
       shift 2
       ;;
     -h|--help)

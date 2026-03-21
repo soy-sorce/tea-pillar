@@ -8,6 +8,8 @@ from typing import Final, Self
 import structlog
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from src.exceptions import InvalidInputError
+
 logger = structlog.get_logger(__name__)
 
 VERTEX_IMAGE_TARGET_BYTES: Final[int] = 700_000
@@ -26,9 +28,12 @@ class VertexImagePreprocessor:
         """Return a base64 image that better fits the Vertex request limit."""
         try:
             raw_bytes = base64.b64decode(image_base64, validate=True)
-        except (ValueError, binascii.Error):
+        except (ValueError, binascii.Error) as exc:
             logger.warning("vertex_image_preprocess_invalid_base64")
-            return image_base64
+            raise InvalidInputError(
+                message="画像データの形式が不正です",
+                detail=str(exc),
+            ) from exc
 
         logger.debug(
             "vertex_image_preprocess_start",
@@ -38,12 +43,15 @@ class VertexImagePreprocessor:
         try:
             with Image.open(io.BytesIO(raw_bytes)) as opened_image:
                 image = ImageOps.exif_transpose(opened_image).convert("RGB")
-        except (UnidentifiedImageError, OSError):
+        except (UnidentifiedImageError, OSError) as exc:
             logger.warning(
                 "vertex_image_preprocess_open_failed",
                 raw_byte_size=len(raw_bytes),
             )
-            return image_base64
+            raise InvalidInputError(
+                message="画像データの形式が不正です",
+                detail="image bytes could not be decoded",
+            ) from exc
 
         original_size = image.size
         max_dimension = INITIAL_MAX_DIMENSION

@@ -11,7 +11,7 @@ import structlog
 from google.cloud.storage import Client as StorageClient
 
 from src.config import Settings
-from src.exceptions import NotConfiguredError
+from src.exceptions import InvalidInputError, NotConfiguredError
 
 logger = structlog.get_logger(__name__)
 
@@ -33,7 +33,7 @@ class ModelInputImageUploader:
         try:
             raw_bytes = base64.b64decode(image_base64, validate=True)
         except (ValueError, binascii.Error) as exc:
-            raise NotConfiguredError(
+            raise InvalidInputError(
                 message="画像データの形式が不正です",
                 detail=str(exc),
             ) from exc
