@@ -10,10 +10,11 @@ ARTIFACT_REGISTRY_REPO=""
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/deploy_ML/build_and_push_model.sh --artifact-registry-repo <repo>
+  bash scripts/deploy_ML/build_and_push_model.sh --artifact-registry-repo <repo> [--model-image-tag <tag>]
 
 Options:
   --artifact-registry-repo, --repo   Artifact Registry repository name
+  --model-image-tag, --tag           Docker image tag (default: v0)
 EOF
 }
 
@@ -21,6 +22,10 @@ while (($# > 0)); do
   case "$1" in
     --artifact-registry-repo|--repo)
       ARTIFACT_REGISTRY_REPO="${2:-}"
+      shift 2
+      ;;
+    --model-image-tag|--tag)
+      MODEL_IMAGE_TAG="${2:-}"
       shift 2
       ;;
     -h|--help)
