@@ -6,7 +6,6 @@ import { PhotoSection } from "@/components/experience/PhotoSection";
 import { ContextSection } from "@/components/experience/ContextSection";
 import { useGenerate } from "@/hooks/useGenerate";
 import { useToast } from "@/hooks/useToast";
-import { audioUrlToBase64 } from "@/lib/audioUtils";
 import { urlToBase64 } from "@/lib/imageUtils";
 import type { MeowSample, PhotoSample } from "@/types/app";
 
@@ -48,7 +47,15 @@ export function ExperienceForm(): React.JSX.Element {
         if (capturedAudioBase64) {
             audioBase64 = capturedAudioBase64;
         } else if (selectedMeow) {
-            audioBase64 = await audioUrlToBase64(selectedMeow.url);
+            // Temporary fallback: sample audio assets are not deployed yet, and the current
+            // /samples/audio/*.wav URLs can resolve to index.html. Until real wav files are
+            // added under frontend/public/samples/audio/, keep sample selection enabled in
+            // experience mode but send no audio payload to the backend/model.
+            //
+            // Follow-up: once the wav files exist, replace this branch by sending a
+            // pre-converted base64 string for each sample, instead of fetching the asset
+            // during submit time.
+            audioBase64 = undefined;
         }
 
         if (!selectedPhoto) return;
