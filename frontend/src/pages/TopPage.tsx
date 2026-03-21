@@ -1,10 +1,9 @@
 // src/pages/TopPage.tsx
 import { useEffect, useState } from "react";
-import { Sparkles, PawPrint, Clapperboard } from "lucide-react";
+import { PawPrint, Clapperboard } from "lucide-react";
 import { useGenerationContext } from "@/contexts/GenerationContext";
 import { ExperienceForm } from "@/components/forms/ExperienceForm";
 import { ProductionForm } from "@/components/forms/ProductionForm";
-import { FlowDiagram } from "@/components/home/FlowDiagram";
 
 type TabKey = "experience" | "production";
 
@@ -30,21 +29,42 @@ export function TopPage(): React.JSX.Element {
 
             <div className="relative mx-auto flex max-w-4xl flex-col gap-12 px-1 py-12 sm:px-3 sm:py-20">
                 <div className="animate-slideUp text-center">
-                    <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent-light px-4 py-1.5 text-sm font-medium text-accent">
-                        <Sparkles size={14} />
-                        AIが猫のための動画を生成します
-                    </div>
                     <h1 className="text-6xl font-black tracking-tight text-text-primary sm:text-7xl md:text-8xl">
                         nekko<span className="text-gradient">flix</span>
                     </h1>
-                    <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-text-secondary sm:text-2xl">
-                        猫の鳴き声・表情・性格から、最高の動画を。
+                    <p className="mx-auto mt-5 max-w-2xl text-xl font-semibold leading-relaxed text-text-secondary sm:text-3xl">
+                        Pets in the loopの実践
                     </p>
                 </div>
 
-                <div className="animate-slideUp delay-150">
-                    <FlowDiagram />
-                </div>
+                <section className="animate-slideUp delay-150">
+                    <div className="rounded-[32px] border border-border/70 bg-white/75 p-6 shadow-card backdrop-blur-sm sm:p-8">
+                        <div className="mx-auto max-w-3xl text-left">
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent sm:text-[13px]">
+                                Pets in the loop
+                            </p>
+                            <h2 className="mt-3 text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+                                ペットもAIの進化のループに入る未来を、いま体験する
+                            </h2>
+                            <div className="mt-5 space-y-4 text-sm leading-7 text-text-secondary sm:text-[15px]">
+                                <p>
+                                    「次はフィジカルAIだ」と語られることが増え、AIが身体を持って暮らしに入ってくる未来が現実味を帯びています。
+                                    そのとき家の中にいるのは人間だけではなく、猫をはじめとするペットたちも含まれます。
+                                </p>
+                                <p>
+                                    私たちも当初は「人間とAI」の関係だけを前提に考えていましたが、そこで見落としていたのが動物の存在でした。
+                                    人間にとってAIが身近な道具になっていく一方で、動物にとってAIはこれから日常の中に現れる新しい相手です。
+                                </p>
+                                <p>
+                                    フィジカルAIが普及した未来には、ペットがロボットやデバイスを通じてAIと自然に関わり、その反応がモデル改善の手がかりになります。
+                                    さらに、人間の知識やアノテーションが加わることで、はじめてAIはよりよく学習できます。
+                                    私たちはこの関係性を <span className="font-semibold text-text-primary">Pets in the Loop</span> と捉え、
+                                    その入り口をWeb上で先取り体験できる形としてこのプロダクトを提案しています。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <section className="animate-slideUp delay-200">
                     <div className="rounded-[36px] border border-border/70 bg-white/70 p-4 shadow-card backdrop-blur-md sm:p-6">

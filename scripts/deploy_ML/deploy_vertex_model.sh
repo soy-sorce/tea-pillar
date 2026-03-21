@@ -8,6 +8,7 @@ MODEL_IMAGE_TAG="v0"
 VERTEX_MODEL_DISPLAY_NAME="nekkoflix-model-v0"
 VERTEX_ENDPOINT_DISPLAY_NAME="nekkoflix-model-endpoint"
 ARTIFACT_REGISTRY_REPO=""
+UNDEPLOY_OLD_DEPLOYED_MODEL_ID=""
 
 MACHINE_TYPE="${MACHINE_TYPE:-n1-standard-4}"
 MIN_REPLICA_COUNT="${MIN_REPLICA_COUNT:-1}"
@@ -16,13 +17,15 @@ MAX_REPLICA_COUNT="${MAX_REPLICA_COUNT:-1}"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/deploy_ML/deploy_vertex_model.sh --artifact-registry-repo <repo> [--model-image-tag <tag>] [--vertex-model-display-name <name>]
+  bash scripts/deploy_ML/deploy_vertex_model.sh --artifact-registry-repo <repo> [--model-image-tag <tag>] [--vertex-model-display-name <name>] [--undeploy-old-deployed-model-id <id>]
 
 Options:
   --artifact-registry-repo, --repo   Artifact Registry repository name
   --model-image-tag, --tag           Docker image tag (default: v0)
   --vertex-model-display-name, --display-name
                                     Vertex Model display name (default: nekkoflix-model-v0)
+  --vertex-endpoint-display-name     Vertex Endpoint display name (default: nekkoflix-model-endpoint)
+  --undeploy-old-deployed-model-id   Undeploy an old deployed model id after the new deployment succeeds
 EOF
 }
 
@@ -38,6 +41,14 @@ while (($# > 0)); do
       ;;
     --vertex-model-display-name|--display-name)
       VERTEX_MODEL_DISPLAY_NAME="${2:-}"
+      shift 2
+      ;;
+    --vertex-endpoint-display-name)
+      VERTEX_ENDPOINT_DISPLAY_NAME="${2:-}"
+      shift 2
+      ;;
+    --undeploy-old-deployed-model-id)
+      UNDEPLOY_OLD_DEPLOYED_MODEL_ID="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -59,6 +70,15 @@ if [[ -z "${ARTIFACT_REGISTRY_REPO}" ]]; then
 fi
 
 IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${MODEL_IMAGE_NAME}:${MODEL_IMAGE_TAG}"
+
+print_endpoint_state() {
+  local endpoint_id="$1"
+  echo "==> endpoint state"
+  gcloud ai endpoints describe "${endpoint_id}" \
+    --project="${PROJECT_ID}" \
+    --region="${REGION}" \
+    --format="yaml(displayName,name,trafficSplit,deployedModels.id,deployedModels.displayName,deployedModels.model,deployedModels.createTime)"
+}
 
 echo "==> uploading model to vertex ai"
 upload_args=(
@@ -127,6 +147,15 @@ fi
 
 gcloud "${deploy_args[@]}"
 
+if [[ -n "${UNDEPLOY_OLD_DEPLOYED_MODEL_ID}" ]]; then
+  echo "==> undeploying old deployed model: ${UNDEPLOY_OLD_DEPLOYED_MODEL_ID}"
+  gcloud ai endpoints undeploy-model "${ENDPOINT_ID}" \
+    --project="${PROJECT_ID}" \
+    --region="${REGION}" \
+    --deployed-model-id="${UNDEPLOY_OLD_DEPLOYED_MODEL_ID}"
+fi
+
 echo "done"
 echo "image_uri=${IMAGE_URI}"
 echo "endpoint_id=${ENDPOINT_ID}"
+print_endpoint_state "${ENDPOINT_ID}"

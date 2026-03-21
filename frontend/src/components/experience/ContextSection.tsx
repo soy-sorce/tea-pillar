@@ -23,6 +23,10 @@ export function ContextSection({
                 <span className="rounded-full bg-surface-alt px-2 py-0.5 text-xs text-text-muted">任意</span>
             </div>
 
+            <p className="mb-4 text-sm leading-6 text-text-secondary sm:text-[15px]">
+                性格や好み、普段の様子を補足すると、生成される動画の雰囲気や内容をより猫らしく調整できます。
+            </p>
+
             {/* テキストエリア */}
             <textarea
                 id="experience-context-input"

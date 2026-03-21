@@ -9,13 +9,15 @@ DEPLOY_ARGS=()
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/deploy_ML/deploy_model_to_vertex.sh --artifact-registry-repo <repo> [--model-image-tag <tag>] [--vertex-model-display-name <name>]
+  bash scripts/deploy_ML/deploy_model_to_vertex.sh --artifact-registry-repo <repo> [--model-image-tag <tag>] [--vertex-model-display-name <name>] [--undeploy-old-deployed-model-id <id>]
 
 Options:
   --artifact-registry-repo, --repo   Artifact Registry repository name
   --model-image-tag, --tag           Docker image tag
   --vertex-model-display-name, --display-name
                                     Vertex Model display name
+  --vertex-endpoint-display-name     Vertex Endpoint display name
+  --undeploy-old-deployed-model-id   Undeploy an old deployed model id after the new deployment succeeds
 EOF
 }
 
@@ -32,6 +34,10 @@ while (($# > 0)); do
       shift 2
       ;;
     --vertex-model-display-name|--display-name)
+      DEPLOY_ARGS+=("$1" "${2:-}")
+      shift 2
+      ;;
+    --vertex-endpoint-display-name|--undeploy-old-deployed-model-id)
       DEPLOY_ARGS+=("$1" "${2:-}")
       shift 2
       ;;
