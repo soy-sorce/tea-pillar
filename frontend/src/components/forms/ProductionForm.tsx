@@ -10,6 +10,7 @@ import {
     MAX_IMAGE_UPLOAD_BYTES,
     MAX_IMAGE_UPLOAD_LABEL,
 } from "@/lib/uploadLimits";
+import { MAX_RECORDING_SECONDS } from "@/hooks/useMicrophone";
 
 interface DropZoneProps {
     label: string;
@@ -116,6 +117,35 @@ function validateFileSize(file: File, maxBytes: number, label: string): string |
     return `${label}は${(maxBytes / (1024 * 1024)).toFixed(0)}MB以下のファイルを選択してください`;
 }
 
+async function validateAudioDuration(file: File): Promise<string | null> {
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+        const duration = await new Promise<number>((resolve, reject) => {
+            const audio = document.createElement("audio");
+
+            audio.preload = "metadata";
+            audio.onloadedmetadata = () => resolve(audio.duration);
+            audio.onerror = () => reject(new Error("audio metadata load failed"));
+            audio.src = objectUrl;
+        });
+
+        if (!Number.isFinite(duration)) {
+            return "鳴き声ファイルの長さを確認できませんでした";
+        }
+
+        if (duration > MAX_RECORDING_SECONDS) {
+            return `鳴き声ファイルは${MAX_RECORDING_SECONDS}秒以下にしてください`;
+        }
+
+        return null;
+    } catch {
+        return "鳴き声ファイルの読み込みに失敗しました";
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
 export function ProductionForm(): React.JSX.Element {
     const { generate, isLoading } = useGenerate();
     const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -141,11 +171,18 @@ export function ProductionForm(): React.JSX.Element {
         });
     };
 
-    const handleAudioFile = (file: File): void => {
+    const handleAudioFile = async (file: File): Promise<void> => {
         const error = validateFileSize(file, MAX_AUDIO_UPLOAD_BYTES, "鳴き声ファイル");
         if (error) {
             setAudioFile(null);
             setAudioError(error);
+            return;
+        }
+
+        const durationError = await validateAudioDuration(file);
+        if (durationError) {
+            setAudioFile(null);
+            setAudioError(durationError);
             return;
         }
 
@@ -170,11 +207,13 @@ export function ProductionForm(): React.JSX.Element {
             <div className="space-y-6 rounded-card-lg border border-border bg-surface p-6 shadow-card">
                 <DropZone
                     label="鳴き声ファイル"
-                    sublabel={`.wav 形式 / ${MAX_AUDIO_UPLOAD_LABEL}以下`}
+                    sublabel={`.wav 形式 / ${MAX_AUDIO_UPLOAD_LABEL}以下 / 最大${MAX_RECORDING_SECONDS}秒`}
                     file={audioFile}
                     accept="audio/wav,.wav"
                     icon={<Music size={22} />}
-                    onFile={handleAudioFile}
+                    onFile={(file) => {
+                        void handleAudioFile(file);
+                    }}
                     inputRef={audioInputRef}
                     errorMessage={audioError}
                 />

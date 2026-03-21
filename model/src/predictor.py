@@ -38,7 +38,12 @@ def main() -> None:
     """Read a request JSON from stdin and write a response JSON to stdout."""
     payload = json.load(sys.stdin)
     request = PredictionRequest(
-        image_base64=str(payload["image_base64"]),
+        image_base64=(
+            str(payload["image_base64"]) if payload.get("image_base64") is not None else None
+        ),
+        image_gcs_uri=(
+            str(payload["image_gcs_uri"]) if payload.get("image_gcs_uri") is not None else None
+        ),
         audio_base64=(
             str(payload["audio_base64"]) if payload.get("audio_base64") is not None else None
         ),

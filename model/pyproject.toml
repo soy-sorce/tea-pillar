@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
+    "google-cloud-storage>=2.19.0",
     "joblib>=1.4.0",
     "numpy>=1.26.0",
     "pandas>=2.0.0",
@@ -41,6 +42,8 @@ warn_return_any = true
 
 [[tool.mypy.overrides]]
 module = [
+    "google.cloud.storage",
+    "google.cloud.storage.*",
     "joblib",
     "joblib.*",
     "numpy",

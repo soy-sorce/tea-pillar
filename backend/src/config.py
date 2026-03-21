@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     vertex_endpoint_location: str = Field(default="asia-northeast1")
     vertex_prediction_timeout: int = Field(default=30)
 
-    gemini_model: str = Field(default="gemini-1.5-flash")
+    gemini_model: str = Field(default="gemini-2.5-flash")
     gemini_timeout: int = Field(default=15)
 
     veo_model: str = Field(default="veo-3.1-fast")
@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     gcs_bucket_name: str = Field(
         default="",
         description="Set after the Veo output bucket is provisioned.",
+    )
+    model_input_bucket_name: str = Field(
+        default="video-gen4cat-model-inputs-94553428765",
+        description="Temporary GCS bucket for model input images.",
     )
     gcs_signed_url_expiration_hours: int = Field(default=1)
 

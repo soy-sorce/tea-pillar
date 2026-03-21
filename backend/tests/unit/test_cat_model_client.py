@@ -58,6 +58,14 @@ async def test_predict_passes_payload_and_parses_response(monkeypatch: MonkeyPat
 
     monkeypatch.setattr("src.services.cat_model.client.aiplatform.Endpoint", FakeEndpoint)
     monkeypatch.setattr("src.services.cat_model.client.asyncio.to_thread", fake_to_thread)
+    monkeypatch.setattr(
+        "src.services.cat_model.client.VertexImagePreprocessor.preprocess",
+        lambda self, image_base64: f"processed-{image_base64}",
+    )
+    monkeypatch.setattr(
+        "src.services.cat_model.client.ModelInputImageUploader.upload_base64_image",
+        lambda self, image_base64: f"gs://model-inputs/{image_base64}.jpg",
+    )
 
     client = CatModelClient(
         settings=Settings(
@@ -76,7 +84,7 @@ async def test_predict_passes_payload_and_parses_response(monkeypatch: MonkeyPat
     assert response.predicted_rewards == {"video-1": 0.1, "video-2": 0.2}
     assert captured["instances"] == [
         {
-            "image_base64": "image-data",
+            "image_gcs_uri": "gs://model-inputs/processed-image-data.jpg",
             "audio_base64": "audio-data",
             "candidate_video_ids": ["video-1", "video-2"],
         },
@@ -102,6 +110,10 @@ async def test_predict_maps_deadline_exceeded(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("src.services.cat_model.client.aiplatform.Endpoint", FakeEndpoint)
     monkeypatch.setattr("src.services.cat_model.client.asyncio.to_thread", fake_to_thread)
+    monkeypatch.setattr(
+        "src.services.cat_model.client.ModelInputImageUploader.upload_base64_image",
+        lambda self, image_base64: "gs://model-inputs/image.jpg",
+    )
     client = CatModelClient(settings=Settings(gcp_project_id="demo", vertex_endpoint_id="ep"))
 
     try:
@@ -132,6 +144,10 @@ async def test_predict_maps_retry_error(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("src.services.cat_model.client.aiplatform.Endpoint", FakeEndpoint)
     monkeypatch.setattr("src.services.cat_model.client.asyncio.to_thread", fake_to_thread)
+    monkeypatch.setattr(
+        "src.services.cat_model.client.ModelInputImageUploader.upload_base64_image",
+        lambda self, image_base64: "gs://model-inputs/image.jpg",
+    )
     client = CatModelClient(settings=Settings(gcp_project_id="demo", vertex_endpoint_id="ep"))
 
     try:
@@ -160,6 +176,10 @@ async def test_predict_maps_google_api_call_error(monkeypatch: MonkeyPatch) -> N
 
     monkeypatch.setattr("src.services.cat_model.client.aiplatform.Endpoint", FakeEndpoint)
     monkeypatch.setattr("src.services.cat_model.client.asyncio.to_thread", fake_to_thread)
+    monkeypatch.setattr(
+        "src.services.cat_model.client.ModelInputImageUploader.upload_base64_image",
+        lambda self, image_base64: "gs://model-inputs/image.jpg",
+    )
     client = CatModelClient(settings=Settings(gcp_project_id="demo", vertex_endpoint_id="ep"))
 
     try:

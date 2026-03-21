@@ -16,10 +16,11 @@ from __future__ import annotations
 import base64
 import io
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Final, Self, TypedDict
 
 import numpy as np
+from google.cloud.storage import Client as StorageClient
 
 from src.schemas import PredictionRequest
 
@@ -70,7 +71,7 @@ class FeatureExtractor:
         self: Self, request: PredictionRequest
     ) -> tuple[dict[str, float], dict[str, str | None]]:
         """Extract features and auxiliary labels from endpoint request."""
-        image = _decode_base64_image(request.image_base64)
+        image = _load_request_image(request)
         emotion_scores = self._runtime.extract_emotion_scores(image)
         clip_scores = self._runtime.extract_clip_scores(image)
         pose_features = self._runtime.extract_pose_features(image)
@@ -227,9 +228,43 @@ def _import_runtime_dependencies() -> tuple[Any, Any, Any, Any, Any, Any, Any, A
     )
 
 
+def _load_request_image(request: PredictionRequest) -> Any:
+    """Load an image from GCS when available, otherwise fall back to base64."""
+    loaders: list[Callable[[], Any]] = []
+    if request.image_gcs_uri:
+        loaders.append(lambda: _load_gcs_image(request.image_gcs_uri or ""))
+    if request.image_base64:
+        loaders.append(lambda: _decode_base64_image(request.image_base64 or ""))
+
+    for loader in loaders:
+        try:
+            return loader()
+        except Exception:
+            continue
+
+    raise ValueError("request image is missing or unreadable")
+
+
 def _decode_base64_image(value: str) -> Any:
     """Decode a base64 image into a PIL RGB image."""
     image_bytes = base64.b64decode(value.encode("utf-8"), validate=False)
+    (_, _, _, _, _, _, _, _, pil_image) = _import_runtime_dependencies()
+    return pil_image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+
+def _load_gcs_image(gcs_uri: str) -> Any:
+    """Load an image from a gs:// URI."""
+    if not gcs_uri.startswith("gs://"):
+        raise ValueError("gcs_uri must start with gs://")
+
+    path = gcs_uri.removeprefix("gs://")
+    bucket_name, _, blob_name = path.partition("/")
+    if not bucket_name or not blob_name:
+        raise ValueError("gcs_uri must include bucket and object path")
+
+    client = StorageClient()
+    blob = client.bucket(bucket_name).blob(blob_name)
+    image_bytes = blob.download_as_bytes()
     (_, _, _, _, _, _, _, _, pil_image) = _import_runtime_dependencies()
     return pil_image.open(io.BytesIO(image_bytes)).convert("RGB")
 

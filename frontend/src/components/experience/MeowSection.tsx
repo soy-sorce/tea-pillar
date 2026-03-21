@@ -1,9 +1,9 @@
 // src/components/experience/MeowSection.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Music } from "lucide-react";
 import { SampleCard } from "./SampleCard";
 import { MicButton } from "./MicButton";
-import { useMicrophone } from "@/hooks/useMicrophone";
+import { MAX_RECORDING_SECONDS, useMicrophone } from "@/hooks/useMicrophone";
 import { MEOW_SAMPLES, type MeowSample } from "@/types/app";
 
 interface MeowSectionProps {
@@ -26,15 +26,25 @@ export function MeowSection({
 
     const handleMicStart = async (): Promise<void> => {
         await startRecording();
-        if (error) {
-            onToast("マイクが使用できませんでした。サンプル選択に切り替えます", "error");
-            setInputMode("A");
-        }
     };
 
     if (audioBase64 && audioBase64 !== selectedAudioBase64 && inputMode === "B") {
         onAudioCapture(audioBase64);
     }
+
+    useEffect(() => {
+        if (!error) {
+            return;
+        }
+
+        if (error.includes("最大")) {
+            onToast(`録音は最大${MAX_RECORDING_SECONDS}秒です`, "info");
+            return;
+        }
+
+        onToast("マイクが使用できませんでした。サンプル選択に切り替えます", "error");
+        setInputMode("A");
+    }, [error, onToast]);
 
     return (
         <section aria-labelledby="meow-section-title">
@@ -77,6 +87,9 @@ export function MeowSection({
                     </span>
                 )}
             </div>
+            <p className="mt-2 text-xs text-text-muted">
+                録音は最大{MAX_RECORDING_SECONDS}秒です
+            </p>
         </section>
     );
 }
