@@ -151,6 +151,17 @@ class FailingCatModelClient:
         raise VertexAIError(detail="endpoint failed")
 
 
+class UnexpectedFailingCatModelClient:
+    async def predict(
+        self: Self,
+        image_base64: str,
+        audio_base64: str | None,
+        candidate_video_ids: list[str],
+    ) -> CatFeatures:
+        del image_base64, audio_base64, candidate_video_ids
+        raise RuntimeError("gcs upload forbidden")
+
+
 class TemplateSelectionFailingBandit:
     async def select(
         self: Self,
@@ -383,3 +394,50 @@ async def test_execute_uses_fallback_template_when_vertex_fails() -> None:
     assert firestore.completed is not None
     assert firestore.completed.fallback_used is True
     assert firestore.failed is None
+
+
+async def test_execute_uses_fallback_template_when_cat_model_raises_unexpected_error() -> None:
+    firestore = FakeFirestore()
+
+    class FallbackGemini:
+        async def generate_prompt(
+            self: Self,
+            template_text: str,
+            cat_features: CatFeatures | None,
+            state_key: str | None,
+            user_context: str | None,
+        ) -> str:
+            assert template_text == "A cat reaching a paw across the screen boundary."
+            assert cat_features is None
+            assert state_key is None
+            assert user_context == "playful"
+            return "fallback veo prompt"
+
+    class FallbackVeo:
+        async def generate(self: Self, prompt: str) -> str:
+            assert prompt == "fallback veo prompt"
+            return "gs://bucket/generated/video.mp4"
+
+    orchestrator = GenerateOrchestrator(
+        settings=Settings(),
+        firestore_client=firestore,  # type: ignore[arg-type]
+        cat_model_client=UnexpectedFailingCatModelClient(),  # type: ignore[arg-type]
+        gemini_client=FallbackGemini(),  # type: ignore[arg-type]
+        veo_client=FallbackVeo(),  # type: ignore[arg-type]
+        signed_url_generator=FakeSignedUrlGenerator(),  # type: ignore[arg-type]
+        fallback_template_loader=FixedFallbackTemplateLoader(),  # type: ignore[arg-type]
+    )
+
+    response = await orchestrator.execute(
+        GenerateRequest(
+            mode="experience",
+            image_base64="encoded-image",
+            audio_base64=None,
+            user_context="playful",
+        ),
+    )
+
+    assert response.template_id == "video-7"
+    assert response.state_key == ""
+    assert firestore.completed is not None
+    assert firestore.completed.fallback_used is True
