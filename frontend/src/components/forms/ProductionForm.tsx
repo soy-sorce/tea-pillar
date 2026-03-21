@@ -13,7 +13,9 @@ import {
 import { MAX_RECORDING_SECONDS } from "@/hooks/useMicrophone";
 
 interface DropZoneProps {
+    step: number;
     label: string;
+    description: string;
     sublabel?: string;
     required?: boolean;
     file: File | null;
@@ -25,7 +27,9 @@ interface DropZoneProps {
 }
 
 function DropZone({
+    step,
     label,
+    description,
     sublabel,
     required,
     file,
@@ -39,6 +43,9 @@ function DropZone({
 
     return (
         <div>
+            <div className="mb-3 inline-flex items-center rounded-full bg-gradient-btn px-3 py-1 text-xs font-bold text-white shadow-btn-primary">
+                STEP {step}
+            </div>
             <div className="mb-2 flex items-center gap-1.5">
                 <span className="text-sm font-semibold text-text-primary">{label}</span>
                 {required ? (
@@ -47,6 +54,7 @@ function DropZone({
                     <span className="rounded-full bg-surface-alt px-2 py-0.5 text-xs text-text-muted">任意</span>
                 )}
             </div>
+            <p className="mb-4 text-sm leading-6 text-text-secondary sm:text-[15px]">{description}</p>
 
             <div
                 className={[
@@ -206,7 +214,9 @@ export function ProductionForm(): React.JSX.Element {
         <div className="space-y-5">
             <div className="space-y-6 rounded-card-lg border border-border bg-surface p-6 shadow-card">
                 <DropZone
+                    step={1}
                     label="鳴き声ファイル"
+                    description="猫の鳴き声ファイルをアップロードすると、独自AIモデルが感情や状態のヒントを分析し、動画生成に役立てます。"
                     sublabel={`.wav 形式 / ${MAX_AUDIO_UPLOAD_LABEL}以下 / 最大${MAX_RECORDING_SECONDS}秒`}
                     file={audioFile}
                     accept="audio/wav,.wav"
@@ -219,7 +229,9 @@ export function ProductionForm(): React.JSX.Element {
                 />
                 <div className="border-t border-border" />
                 <DropZone
+                    step={2}
                     label="顔・全身写真"
+                    description="顔や全身がわかる写真をアップロードすることで、見た目の特徴や雰囲気を生成内容に反映しやすくします。"
                     sublabel={`.jpg / .png 形式 / ${MAX_IMAGE_UPLOAD_LABEL}以下`}
                     required
                     file={imageFile}
@@ -232,6 +244,9 @@ export function ProductionForm(): React.JSX.Element {
             </div>
 
             <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card">
+                <div className="mb-3 inline-flex items-center rounded-full bg-gradient-btn px-3 py-1 text-xs font-bold text-white shadow-btn-primary">
+                    STEP 3
+                </div>
                 <div className="mb-3 flex items-center gap-2">
                     <FileText size={16} className="text-text-secondary" />
                     <label htmlFor="user-context-input" className="text-sm font-semibold text-text-primary">
@@ -241,6 +256,9 @@ export function ProductionForm(): React.JSX.Element {
                         任意・最大500文字
                     </span>
                 </div>
+                <p className="mb-4 text-sm leading-6 text-text-secondary sm:text-[15px]">
+                    性格や好きなもの、普段の行動などを補足すると、生成される動画の方向性をより自然に調整できます。
+                </p>
                 <textarea
                     id="user-context-input"
                     value={userContext}

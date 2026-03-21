@@ -23,8 +23,8 @@ export function PhotoSection({
                 </h2>
             </div>
 
-            <p className="mb-3 text-sm text-text-secondary">
-                猫の写真を1枚選んでください
+            <p className="mb-4 text-sm leading-6 text-text-secondary sm:text-[15px]">
+                猫の表情や見た目がわかる写真を1枚選ぶことで、見た目の特徴を生成内容に反映しやすくします。
             </p>
 
             <div className="grid grid-cols-3 gap-3">

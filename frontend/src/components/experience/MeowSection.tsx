@@ -57,6 +57,11 @@ export function MeowSection({
                 </h2>
             </div>
 
+            <p className="mb-4 text-sm leading-6 text-text-secondary sm:text-[15px]">
+                音声を選択するか、ご自身で猫の鳴きまねを録音することで、独自AIモデルが感情や状態のヒントを分析し、
+                動画生成に役立てます。
+            </p>
+
             <div className="grid grid-cols-3 gap-3 mb-4">
                 {MEOW_SAMPLES.map((sample) => (
                     <SampleCard
