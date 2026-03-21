@@ -160,7 +160,7 @@ class GenerateOrchestrator:
                 audio_base64=ctx.audio_base64,
                 candidate_video_ids=self._settings.default_candidate_video_ids,
             )
-        except (VertexAIError, VertexAITimeoutError) as exc:
+        except Exception as exc:
             self._apply_vertex_fallback(ctx=ctx, exc=exc)
             return
 
@@ -197,7 +197,7 @@ class GenerateOrchestrator:
     def _apply_vertex_fallback(
         self: Self,
         ctx: GenerationContext,
-        exc: VertexAIError | VertexAITimeoutError,
+        exc: Exception,
     ) -> None:
         """Switch to template-only generation when Vertex is unavailable."""
         template = self._fallback_template_loader.get_random_template()
@@ -215,8 +215,10 @@ class GenerateOrchestrator:
         logger.warning(
             "vertex_fallback_activated",
             session_id=ctx.session_id,
-            error_code=exc.error_code,
-            detail=exc.detail,
+            error_code=(
+                exc.error_code if isinstance(exc, NekkoflixBaseError) else type(exc).__name__
+            ),
+            detail=(exc.detail if isinstance(exc, NekkoflixBaseError) else str(exc)),
             fallback_template_id=template.template_id,
             fallback_template_name=template.name,
         )
