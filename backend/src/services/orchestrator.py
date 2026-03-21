@@ -22,6 +22,7 @@ from src.models.request import GenerateRequest
 from src.models.response import GenerateResponse
 from src.services.bandit.ucb import UCBBandit
 from src.services.cat_model.client import CatModelClient
+from src.services.fallback_templates.loader import FallbackTemplateLoader
 from src.services.firestore.client import FirestoreClient
 from src.services.gemini.client import GeminiClient
 from src.services.state_key.builder import StateKeyBuilder
@@ -45,6 +46,7 @@ class GenerateOrchestrator:
         gemini_client: GeminiClient | None = None,
         veo_client: VeoClient | None = None,
         signed_url_generator: SignedUrlGenerator | None = None,
+        fallback_template_loader: FallbackTemplateLoader | None = None,
     ) -> None:
         self._settings = settings
         self._firestore = firestore_client or FirestoreClient(settings=settings)
@@ -56,6 +58,7 @@ class GenerateOrchestrator:
         self._signed_url_generator = signed_url_generator or SignedUrlGenerator(
             settings=settings,
         )
+        self._fallback_template_loader = fallback_template_loader or FallbackTemplateLoader()
 
     async def execute(self: Self, request: GenerateRequest) -> GenerateResponse:
         """Run the generation pipeline and return the final payload."""
@@ -85,39 +88,7 @@ class GenerateOrchestrator:
 
         try:
             await self._firestore.create_session(ctx=ctx)
-            ctx.cat_features = await self._cat_model.predict(
-                image_base64=ctx.image_base64,
-                audio_base64=ctx.audio_base64,
-                candidate_video_ids=self._settings.default_candidate_video_ids,
-            )
-            logger.info(
-                "cat_features_ready",
-                session_id=ctx.session_id,
-                emotion_label=ctx.cat_features.emotion_label,
-                clip_top_label=ctx.cat_features.clip_top_label,
-                meow_label=ctx.cat_features.meow_label or "unknown",
-                predicted_reward_count=len(ctx.cat_features.predicted_rewards),
-            )
-            ctx.state_key = self._state_key_builder.build(features=ctx.cat_features)
-            logger.info(
-                "state_key_ready",
-                session_id=ctx.session_id,
-                state_key=ctx.state_key,
-            )
-            ctx.bandit_selection = await self._bandit.select(
-                state_key=ctx.state_key,
-                predicted_rewards=ctx.cat_features.predicted_rewards,
-            )
-            logger.info(
-                "bandit_selection_ready",
-                session_id=ctx.session_id,
-                state_key=ctx.state_key,
-                template_id=ctx.bandit_selection.template_id,
-                template_name=ctx.bandit_selection.template_name,
-                predicted_reward=ctx.bandit_selection.predicted_reward,
-                ucb_bonus=ctx.bandit_selection.ucb_bonus,
-                final_score=ctx.bandit_selection.final_score,
-            )
+            await self._prepare_generation_context(ctx)
             ctx.generated_prompt = await self._gemini.generate_prompt(
                 template_text=ctx.bandit_selection.prompt_text,
                 cat_features=ctx.cat_features,
@@ -179,6 +150,75 @@ class GenerateOrchestrator:
             state_key=ctx.state_key or "",
             template_id=ctx.bandit_selection.template_id if ctx.bandit_selection else "",
             template_name=ctx.bandit_selection.template_name if ctx.bandit_selection else "",
+        )
+
+    async def _prepare_generation_context(self: Self, ctx: GenerationContext) -> None:
+        """Populate the context for either normal generation or fallback generation."""
+        try:
+            ctx.cat_features = await self._cat_model.predict(
+                image_base64=ctx.image_base64,
+                audio_base64=ctx.audio_base64,
+                candidate_video_ids=self._settings.default_candidate_video_ids,
+            )
+        except (VertexAIError, VertexAITimeoutError) as exc:
+            self._apply_vertex_fallback(ctx=ctx, exc=exc)
+            return
+
+        assert ctx.cat_features is not None
+        logger.info(
+            "cat_features_ready",
+            session_id=ctx.session_id,
+            emotion_label=ctx.cat_features.emotion_label,
+            clip_top_label=ctx.cat_features.clip_top_label,
+            meow_label=ctx.cat_features.meow_label or "unknown",
+            predicted_reward_count=len(ctx.cat_features.predicted_rewards),
+        )
+        ctx.state_key = self._state_key_builder.build(features=ctx.cat_features)
+        logger.info(
+            "state_key_ready",
+            session_id=ctx.session_id,
+            state_key=ctx.state_key,
+        )
+        ctx.bandit_selection = await self._bandit.select(
+            state_key=ctx.state_key,
+            predicted_rewards=ctx.cat_features.predicted_rewards,
+        )
+        logger.info(
+            "bandit_selection_ready",
+            session_id=ctx.session_id,
+            state_key=ctx.state_key,
+            template_id=ctx.bandit_selection.template_id,
+            template_name=ctx.bandit_selection.template_name,
+            predicted_reward=ctx.bandit_selection.predicted_reward,
+            ucb_bonus=ctx.bandit_selection.ucb_bonus,
+            final_score=ctx.bandit_selection.final_score,
+        )
+
+    def _apply_vertex_fallback(
+        self: Self,
+        ctx: GenerationContext,
+        exc: VertexAIError | VertexAITimeoutError,
+    ) -> None:
+        """Switch to template-only generation when Vertex is unavailable."""
+        template = self._fallback_template_loader.get_random_template()
+        ctx.fallback_used = True
+        ctx.state_key = None
+        ctx.cat_features = None
+        ctx.bandit_selection = BanditSelection(
+            template_id=template.template_id,
+            template_name=template.name,
+            prompt_text=template.prompt_text,
+            predicted_reward=0.0,
+            ucb_bonus=0.0,
+            final_score=0.0,
+        )
+        logger.warning(
+            "vertex_fallback_activated",
+            session_id=ctx.session_id,
+            error_code=exc.error_code,
+            detail=exc.detail,
+            fallback_template_id=template.template_id,
+            fallback_template_name=template.name,
         )
 
     async def _safely_fail_session(

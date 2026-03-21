@@ -15,8 +15,8 @@ from src.exceptions import (
     VeoGenerationError,
     VeoTimeoutError,
     VertexAIError,
-    VertexAITimeoutError,
 )
+from src.models.firestore import TemplateDocument
 from src.models.internal import BanditSelection, CatFeatures, GenerationContext
 from src.models.request import GenerateRequest
 from src.services.orchestrator import GenerateOrchestrator
@@ -85,11 +85,12 @@ class FakeGemini:
     async def generate_prompt(
         self: Self,
         template_text: str,
-        cat_features: CatFeatures,
-        state_key: str,
+        cat_features: CatFeatures | None,
+        state_key: str | None,
         user_context: str | None,
     ) -> str:
         assert template_text == "mouse chasing prompt"
+        assert cat_features is not None
         assert cat_features.emotion_label == "happy"
         assert state_key == "unknown_happy_curious_cat"
         assert user_context == "curious"
@@ -150,15 +151,26 @@ class FailingCatModelClient:
         raise VertexAIError(detail="endpoint failed")
 
 
-async def test_execute_marks_session_failed_when_service_raises() -> None:
+class TemplateSelectionFailingBandit:
+    async def select(
+        self: Self,
+        state_key: str,
+        predicted_rewards: dict[str, float],
+    ) -> BanditSelection:
+        del state_key, predicted_rewards
+        raise TemplateSelectionError(detail="template failed")
+
+
+async def test_execute_marks_session_failed_when_non_fallback_service_raises() -> None:
     firestore = FakeFirestore()
     orchestrator = GenerateOrchestrator(
         settings=Settings(),
         firestore_client=firestore,  # type: ignore[arg-type]
-        cat_model_client=FailingCatModelClient(),  # type: ignore[arg-type]
+        cat_model_client=FakeCatModelClient(),  # type: ignore[arg-type]
+        bandit=TemplateSelectionFailingBandit(),  # type: ignore[arg-type]
     )
 
-    with pytest.raises(VertexAIError):
+    with pytest.raises(TemplateSelectionError):
         await orchestrator.execute(
             GenerateRequest(
                 mode="experience",
@@ -170,14 +182,12 @@ async def test_execute_marks_session_failed_when_service_raises() -> None:
 
     assert firestore.created is not None
     assert firestore.failed is not None
-    assert firestore.failed[1] == "endpoint failed"
+    assert firestore.failed[1] == "template failed"
 
 
 @pytest.mark.parametrize(
     ("exception", "expected_detail"),
     [
-        (VertexAITimeoutError(detail="vertex timeout"), "vertex timeout"),
-        (VertexAIError(detail="vertex failed"), "vertex failed"),
         (TemplateSelectionError(detail="template failed"), "template failed"),
         (GeminiError(detail="gemini failed"), "gemini failed"),
         (VeoGenerationError(detail="veo failed"), "veo failed"),
@@ -190,17 +200,18 @@ async def test_execute_marks_session_failed_for_all_handled_errors(
     expected_detail: str,
 ) -> None:
     class FailingDependency:
-        async def predict(
-            self: Self, image_base64: str, audio_base64: str | None, candidate_video_ids: list[str]
-        ) -> CatFeatures:
-            del image_base64, audio_base64, candidate_video_ids
+        async def select(
+            self: Self, state_key: str, predicted_rewards: dict[str, float]
+        ) -> BanditSelection:
+            del state_key, predicted_rewards
             raise exception
 
     firestore = FakeFirestore()
     orchestrator = GenerateOrchestrator(
         settings=Settings(),
         firestore_client=firestore,  # type: ignore[arg-type]
-        cat_model_client=FailingDependency(),  # type: ignore[arg-type]
+        cat_model_client=FakeCatModelClient(),  # type: ignore[arg-type]
+        bandit=FailingDependency(),  # type: ignore[arg-type]
     )
 
     with pytest.raises(type(exception)):
@@ -221,10 +232,11 @@ async def test_execute_reraises_original_error_when_fail_session_also_fails() ->
     orchestrator = GenerateOrchestrator(
         settings=Settings(),
         firestore_client=FailingFailFirestore(),  # type: ignore[arg-type]
-        cat_model_client=FailingCatModelClient(),  # type: ignore[arg-type]
+        cat_model_client=FakeCatModelClient(),  # type: ignore[arg-type]
+        bandit=TemplateSelectionFailingBandit(),  # type: ignore[arg-type]
     )
 
-    with pytest.raises(VertexAIError):
+    with pytest.raises(TemplateSelectionError):
         await orchestrator.execute(
             GenerateRequest(
                 mode="experience",
@@ -275,8 +287,8 @@ async def test_execute_forwards_none_audio_and_user_context() -> None:
         async def generate_prompt(
             self: Self,
             template_text: str,
-            cat_features: CatFeatures,
-            state_key: str,
+            cat_features: CatFeatures | None,
+            state_key: str | None,
             user_context: str | None,
         ) -> str:
             del template_text, cat_features, state_key
@@ -305,3 +317,69 @@ async def test_execute_forwards_none_audio_and_user_context() -> None:
     assert response.template_id == "video-1"
     assert captured["audio_base64"] is None
     assert captured["user_context"] is None
+
+
+class FixedFallbackTemplateLoader:
+    def get_random_template(self: Self) -> TemplateDocument:
+        return TemplateDocument(
+            template_id="video-7",
+            name="cat tower across screen",
+            prompt_text="A cat reaching a paw across the screen boundary.",
+            is_active=True,
+            auto_generated=False,
+        )
+
+
+async def test_execute_uses_fallback_template_when_vertex_fails() -> None:
+    firestore = FakeFirestore()
+    captured: dict[str, object] = {}
+
+    class FallbackGemini:
+        async def generate_prompt(
+            self: Self,
+            template_text: str,
+            cat_features: CatFeatures | None,
+            state_key: str | None,
+            user_context: str | None,
+        ) -> str:
+            captured["template_text"] = template_text
+            captured["cat_features"] = cat_features
+            captured["state_key"] = state_key
+            captured["user_context"] = user_context
+            return "fallback veo prompt"
+
+    class FallbackVeo:
+        async def generate(self: Self, prompt: str) -> str:
+            assert prompt == "fallback veo prompt"
+            return "gs://bucket/generated/video.mp4"
+
+    orchestrator = GenerateOrchestrator(
+        settings=Settings(),
+        firestore_client=firestore,  # type: ignore[arg-type]
+        cat_model_client=FailingCatModelClient(),  # type: ignore[arg-type]
+        gemini_client=FallbackGemini(),  # type: ignore[arg-type]
+        veo_client=FallbackVeo(),  # type: ignore[arg-type]
+        signed_url_generator=FakeSignedUrlGenerator(),  # type: ignore[arg-type]
+        fallback_template_loader=FixedFallbackTemplateLoader(),  # type: ignore[arg-type]
+    )
+
+    response = await orchestrator.execute(
+        GenerateRequest(
+            mode="experience",
+            image_base64="encoded-image",
+            audio_base64=None,
+            user_context="playful",
+        ),
+    )
+
+    assert response.template_id == "video-7"
+    assert response.template_name == "cat tower across screen"
+    assert response.state_key == ""
+    assert response.video_url == "https://signed.example/video.mp4"
+    assert captured["template_text"] == "A cat reaching a paw across the screen boundary."
+    assert captured["cat_features"] is None
+    assert captured["state_key"] is None
+    assert captured["user_context"] == "playful"
+    assert firestore.completed is not None
+    assert firestore.completed.fallback_used is True
+    assert firestore.failed is None
