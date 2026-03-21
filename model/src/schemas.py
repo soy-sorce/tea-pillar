@@ -8,7 +8,8 @@ from typing import Self
 class PredictionRequest:
     """Normalized endpoint input."""
 
-    image_base64: str
+    image_base64: str | None
+    image_gcs_uri: str | None
     audio_base64: str | None
     candidate_video_ids: list[str]
 
