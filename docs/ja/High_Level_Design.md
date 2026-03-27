@@ -2,25 +2,10 @@
 
 | 項目 | 内容 |
 |------|------|
-| ドキュメントバージョン | v2.0 |
-| 作成日 | 2026-03-19 |
-| ステータス | Draft |
+| ドキュメントバージョン | v3.0 |
+| 作成日 | 2026-03-28 |
+| ステータス | Active |
 | 対応要件定義書 | docs/ja/Requirements_Definition.md |
-
----
-
-## v2.0 更新メモ
-
-本ドキュメントの旧記述には `LightGBM Ranker` 前提が残っているが、現時点の正式前提は `docs/ja/MODELING.md` に従う。
-
-- 本番採用モデルは `LightGBM Regressor`
-- Endpoint は `predicted_rewards` を返す
-- 動画候補は `video-1..video-10`
-- Backend は `predicted_rewards + UCB bonus` で最終選択する
-- Vertex AI Custom Endpoint は `emotion / pose / clip / Reward Regressor` を同一コンテナに統合する
-- Backend は特徴量抽出を行わず、Endpoint 出力のみを利用する
-
-Backend / Model 間の正式契約は `docs/_internal/Phase0_Endpoint_Contract.md` を参照する。
 
 ---
 
@@ -64,12 +49,14 @@ Backend / Model 間の正式契約は `docs/_internal/Phase0_Endpoint_Contract.m
 │  Cloud Run  (Python / FastAPI)                            │
 │  ingress: internal  /  min-instances: 1  /  timeout: 360s │
 │                                                           │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │  POST /generate          POST /feedback              │ │
-│  │  GET  /health                                        │ │
-│  │                                                      │ │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  POST /generate                                          │ │
+│  │  POST /sessions/{id}/reaction-upload-url                 │ │
+│  │  POST /sessions/{id}/reaction                            │ │
+│  │  GET  /health                                            │ │
+│  │                                                          │ │
 │  │  UCB Bandit ── インプロセス（探索・オンライン更新）    │ │
-│  └─────────────────────────────────────────────────────┘ │
+│  └─────────────────────────────────────────────────────────┘ │
 └───┬──────────┬───────────┬──────────────┬────────────────┘
     │          │           │              │
     │ Direct   │ Vertex AI │ Vertex AI    │ Firestore
@@ -125,17 +112,23 @@ teapiller/
 │   ├── pyproject.toml
 │   └── .env.example
 │
-├── frontend/                         # Next.js / React (Cloud Run)
+├── frontend/                         # Vite + React (Cloud Run)
 │   ├── src/
-│   │   ├── app/                      # App Router
+│   │   ├── App.tsx                   # Router定義・GenerationContextProvider
+│   │   ├── pages/
+│   │   │   ├── LandingPage.tsx       # モード選択・コンセプト説明
+│   │   │   ├── ExperiencePage.tsx    # 体験モード 3ステップ
+│   │   │   ├── ProductionPage.tsx    # 本番モード 2ステップ
+│   │   │   └── ResultPage.tsx        # 生成結果・reaction upload
 │   │   ├── components/
-│   │   └── lib/
-│   ├── public/
-│   │   └── samples/
-│   │       ├── audio/                # 体験モード用鳴き声サンプル3種 (.wav)
-│   │       └── images/               # 体験モード用顔写真サンプル3種 (.jpg)
-│   ├── Dockerfile                    # Frontend 専用
-│   ├── next.config.ts
+│   │   │   ├── layout/               # AppLayout, StepIndicator
+│   │   │   ├── result/               # VideoPlayer, LoadingScreen, ErrorScreen
+│   │   │   └── ui/                   # Button, Toast, Spinner
+│   │   ├── hooks/                    # useCamera, useMicrophone, useMotionDetection 等
+│   │   ├── contexts/                 # GenerationContext
+│   │   └── lib/                      # api.ts, audioUtils, imageUtils
+│   ├── Dockerfile
+│   ├── vite.config.ts
 │   └── package.json
 │
 ├── model/                            # Vertex AI Custom Endpoint
@@ -191,23 +184,26 @@ teapiller/
 ### 2.1 Frontend（Cloud Run / Next.js）
 
 **責務：**
-- 画面描画・ルーティング
-- ユーザー入力の受付（マイク・カメラ・ファイルアップロード・コンテキスト選択）
-- Backend への HTTP リクエスト発行（IDトークン付与）
-- ローディング・進捗表示
+- 画面描画・ルーティング（React Router v7）
+- ユーザー入力の受付（カメラ・マイク・コンテキストテキスト）
+- `diff-cam-engine` による動き検知・自動キャプチャ
+- Backend への HTTP リクエスト発行
+- ローディング・ステップ進捗表示
 - 動画再生（Signed URL を `<video>` タグで再生）
-- フィードバックボタンの表示と `POST /feedback` 送信
+- 本番モード時の reaction video 録画・GCS upload・backend 通知
 
 **スタックと主要設定：**
 
 | 項目 | 選定・設定値 |
 |---|---|
-| フレームワーク | Next.js（App Router） |
+| フレームワーク | Vite + React 19 |
+| ルーティング | React Router v7（`react-router-dom`）|
 | 言語 | TypeScript |
+| スタイリング | Tailwind CSS + カスタムCSS |
 | デプロイ形態 | Cloud Run（Dockerコンテナ） |
-| 主要ブラウザ API | Web Audio API（マイク録音）、MediaDevices API（カメラ撮影） |
+| 動き検知 | `diff-cam-engine`（フレーム差分方式） |
+| 録音・録画 | `MediaRecorder` Web API |
 | リクエストタイムアウト | 360秒（Veo3生成を考慮） |
-| 事前収録サンプル配置 | `public/samples/audio/*.wav`、`public/samples/images/*.jpg` |
 
 ---
 
@@ -402,44 +398,37 @@ Frontend        API Gateway       Backend (FastAPI)          外部サービス
    │   state_key, template_id }         │
 ```
 
-### 3.2 POST /feedback の処理フロー
+### 3.2 本番モード reaction video アップロードフロー
 
 ```
-Frontend                  Backend (FastAPI)              Firestore
-   │                            │
-   │  POST /feedback            │
-   │ ─────────────────────────► │
-   │  { session_id, reaction }  │ 1. reaction → reward 変換
-   │                            │    good=+1.0 / neutral=0.0 / bad=-0.5
-   │                            │
-   │                            │ 2. Firestore: feedbacks に記録
-   │                            │
-   │                            │ 3. Bandit テーブル更新
-   │                            │    bandit_table/{template_id}
-   │                            │    cumulative_reward += reward
-   │                            │    selection_count += 1
-   │                            │    mean_reward 再計算
-   │                            │
-   │  200 OK { reward }         │
-   │ ◄──────────────────────── │
+Frontend（ResultPage）          Backend (FastAPI)          GCS
+   │                                │
+   │  動画再生開始（onPlay）         │
+   │  → reaction camera 起動        │
+   │  → useReactionRecorder.start() │
+   │    （最大8秒録画）              │
+   │                                │
+   │  POST /sessions/{id}/          │
+   │  reaction-upload-url           │
+   │ ──────────────────────────────►│
+   │                                │ GCS Signed URL 発行
+   │ ◄──────────────────────────── │
+   │  { upload_url,                 │
+   │    reaction_video_gcs_uri }    │
+   │                                │
+   │  PUT upload_url (Blob)         │
+   │ ──────────────────────────────────────────────► GCS
+   │ ◄────────────────────────────────────────────── 200 OK
+   │                                │
+   │  POST /sessions/{id}/reaction  │
+   │  { reaction_video_gcs_uri }    │
+   │ ──────────────────────────────►│
+   │                                │ Banditテーブル更新（非同期）
+   │  200 OK { status: accepted }   │
+   │ ◄──────────────────────────── │
 ```
 
-### 3.3 体験モード フォールバック フロー
-
-```
-入力方法B（マイク/カメラ）開始
-    │
-    ├── [成功] → 通常フロー (POST /generate)
-    │
-    └── [失敗] MediaDevices API非対応 / 録音撮影失敗 / 解析エラー
-              │
-              ▼
-          トースト表示（3秒）
-          「カメラ/マイクが使用できませんでした。サンプル選択に切り替えます」
-              │
-              ▼
-          入力方法A（サンプル選択）へ自動遷移
-```
+> **体験モードでは上記フローは走らない。** ResultPage は `input.mode === "production"` のときのみ reaction camera を起動する。
 
 ---
 
@@ -451,7 +440,9 @@ Frontend                  Backend (FastAPI)              Firestore
 |---|---|---|---|
 | `GET` | `/health` | ヘルスチェック | 不要 |
 | `POST` | `/generate` | メイン生成フロー | IDトークン必須 |
-| `POST` | `/feedback` | フィードバック記録・Bandit更新 | IDトークン必須 |
+| `POST` | `/sessions/{session_id}/reaction-upload-url` | reaction video 用 GCS signed URL 発行 | IDトークン必須 |
+| `PUT` | `<GCS signed URL>` | reaction video を GCS へ直接アップロード | 不要（GCS） |
+| `POST` | `/sessions/{session_id}/reaction` | reaction video URI 通知・Bandit 更新 | IDトークン必須 |
 
 ### 4.2 POST /generate
 
@@ -482,23 +473,32 @@ Frontend                  Backend (FastAPI)              Firestore
 | `message` | string | エラーの説明 |
 | `session_id` | string | セッションID（生成済みの場合） |
 
-### 4.3 POST /feedback
-
-**リクエストボディ：**
-
-| フィールド | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `session_id` | string | ✅ | `/generate` で返却されたセッションID |
-| `reaction` | string | ✅ | `good`（😺）/ `neutral`（😐）/ `bad`（😾） |
+### 4.3 POST /sessions/{session_id}/reaction-upload-url
 
 **レスポンス（200 OK）：**
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `reward` | number | 変換後の報酬値 |
-| `updated_template_id` | string | 更新対象のテンプレートID |
+| `session_id` | string | セッションID |
+| `upload_url` | string | GCS signed PUT URL（有効期限あり） |
+| `reaction_video_gcs_uri` | string | GCS 上の reaction video の保存先 URI |
+| `expires_in_seconds` | number | signed URL の有効秒数 |
 
-### 4.4 GET /health
+### 4.4 POST /sessions/{session_id}/reaction
+
+**リクエストボディ：**
+
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `reaction_video_gcs_uri` | string | ✅ | GCS 上の reaction video の URI |
+
+**レスポンス（200 OK）：**
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `status` | string | `accepted` |
+
+### 4.5 GET /health
 
 **レスポンス（200 OK）：**
 
@@ -515,76 +515,73 @@ Frontend                  Backend (FastAPI)              Firestore
 
 | 画面ID | 画面名 | パス | 概要 |
 |---|---|---|---|
-| P-01 | トップ（モード選択） | `/` | 体験モード / 本番モードの選択 |
-| P-02 | 体験モード入力 | `/experience` | Step1〜3（鳴き声・写真・コンテキスト選択） |
-| P-03 | 本番モード入力 | `/production` | ファイルアップロード＋コンテキスト自由記述 |
-| P-04 | 生成中ローディング | `/result`（生成中） | 状態キー・テンプレート表示＋ローディング |
-| P-05 | 動画再生・フィードバック | `/result`（完了） | 動画再生＋フィードバック3択ボタン |
-| P-06 | エラー画面 | `/result`（エラー） | エラーメッセージ＋リトライボタン |
+| P-01 | ランディング（モード選択） | `/` | 体験モード / 本番モードの選択・コンセプト説明 |
+| P-02 | 体験モード | `/experience` | 3ステップ（撮影・鳴きマネ録音・コンテキスト入力） |
+| P-03 | 本番モード | `/production` | 2ステップ（コンテキスト入力・撮影/録音） |
+| P-04 | 生成中ローディング | `/result`（loading） | ローディングアニメーション |
+| P-05 | 動画再生・結果 | `/result`（done） | 体験：ループ再生＋生成情報 / 本番：reaction camera付き |
+| P-06 | エラー画面 | `/result`（error） | エラーメッセージ＋リトライボタン |
 
 ### 5.2 画面遷移図
 
 ```
-[P-01 トップ]
+[P-01 ランディング]
     │
-    ├── 体験モードを選ぶ ──► [P-02 体験モード入力]
+    ├── 体験モードで試す ──► [P-02 体験モード /experience]
     │                            │
-    │                            │ Step1: 鳴き声カード選択 or マイク入力（B）
-    │                            │ Step2: 顔写真カード選択 or カメラ撮影（B）
-    │                            │ Step3: コンテキスト選択
-    │                            │ ※B入力失敗 → A入力へ自動フォールバック
+    │                            │ Step 1: カメラ起動 → 動き検知 → 自動キャプチャ
+    │                            │ Step 2: 「録音を開始する（3秒）」ボタン → 自動遷移
+    │                            │ Step 3: コンテキスト入力 → 「動画を生成する」
     │                            │
-    └── 本番モードを選ぶ ──► [P-03 本番モード入力]
+    └── 本番モードで使う ──► [P-03 本番モード /production]
                                  │
-                                 │ 音声・画像アップロード
-                                 │ コンテキスト自由記述
+                                 │ Step 1: コンテキスト入力 → 「次へ」
+                                 │ Step 2: カメラ起動 → 動き検知 → 自動撮影・録音 → 自動送信
     ◄────────────────────────────┘
-    │ POST /generate 送信
+    │ POST /generate
     ▼
-[P-04 生成中ローディング]
+[P-04 生成中ローディング /result]
     │
-    ├── 200 OK 受信 ──► [P-05 動画再生・フィードバック]
-    │                        │
-    │                        │ フィードバック選択（POST /feedback）
-    │                        │
-    │                        └── もう一度 ──► [P-01] or [P-02/P-03]
+    ├── 200 OK ──► [P-05 動画再生・結果]
+    │                 │
+    │                 │ 体験モード: VideoPlayer（ループ）+ 生成情報
+    │                 │ 本番モード: VideoPlayer + reaction camera + upload状態
+    │                 │
+    │                 └── もう一度試す ──► [P-01]
     │
     └── エラー ──────► [P-06 エラー画面]
                             │
-                            ├── リトライ ──► [P-04]（再送信）
-                            └── 戻る ────► [P-02/P-03]
+                            ├── リトライ ──► [P-04]（navigate(0)）
+                            └── 戻る ────► [P-02/P-03]（navigate(-1)）
 ```
 
 ### 5.3 各画面の主要要素（概要）
 
-**P-01 トップ**
+**P-01 ランディング**
 - nekkoflixロゴ・キャッチコピー
-- 「体験モード（あなたが猫になる）」ボタン
-- 「本番モード（実際の猫データ入力）」ボタン
+- コンセプト説明カード（Pets in the Loop）
+- 「体験モードで試す」カード → `/experience`
+- 「本番モードで使う」カード → `/production`
 
-**P-02 体験モード入力**
-- Step1：鳴き声カード3種（サンプル選択）/ マイク録音ボタン（方法B）
-- Step2：顔写真カード3種（サンプル選択）/ カメラ撮影ボタン（方法B）
-- Step3：性格選択ボタン4種（好奇心旺盛 / のんびり屋 / ビビりな猫 / 気まぐれ）＋スキップ
-- 「動画を生成する」ボタン
+**P-02 体験モード（`/experience`）**
+- StepIndicator（3ステップ）
+- Step 1: カメラプレビュー + 動き検知ステータス（自動キャプチャ待ち）
+- Step 2: マイクアイコン + 「録音を開始する（3秒）」ボタン → カウントダウン
+- Step 3: コンテキストテキストエリア（任意）+ 「動画を生成する」ボタン
 
-**P-03 本番モード入力**
-- 音声ファイルアップロード（.wav）
-- 画像ファイルアップロード（.jpg/.png）
-- ユーザーコンテキスト自由記述テキストエリア
-- 「動画を生成する」ボタン
+**P-03 本番モード（`/production`）**
+- StepIndicator（2ステップ）
+- Step 1: コンテキストテキストエリア（任意）+ 「次へ」ボタン
+- Step 2: カメラプレビュー + 動き検知ステータス（自動キャプチャ・録音・送信）
 
 **P-04 生成中ローディング**
-- 状態キー表示（例：`waiting_for_food_happy_attentive`）
-- 選択テンプレート表示（例：`T02 - playful yarn ball bouncing`）
-- 進捗ステップ表示（Geminiプロンプト生成中 → Veo3動画生成中）
 - ローディングアニメーション
-- 想定時間の目安表示（「通常30秒〜3分かかります」）
+- ステップメッセージサイクル（Geminiプロンプト生成中 → Veo3動画生成中）
+- 「通常30秒〜3分かかります」目安表示
 
-**P-05 動画再生・フィードバック**
-- 動画プレーヤー（大画面・ミュート/音量調整付き）
-- フィードバックボタン3択（😺 テンション上がった！ / 😐 まあまあ / 😾 興味なし）
-- 「もう一度試す」ボタン
+**P-05 動画再生・結果**
+- 体験モード: VideoPlayer（ループ再生）+ テンプレート名/state_keyカード + 「もう一度試す」
+- 本番モード: VideoPlayer（1回再生）+ reaction camera プレビュー + upload状態バッジ + 「もう一度試す」
 
 **P-06 エラー画面**
 - エラーメッセージ
@@ -650,20 +647,21 @@ UCBアルゴリズムが参照・更新するテーブル。
 
 | フィールド名 | 型 | 必須 | 説明 |
 |---|---|---|---|
-| `feedback_id` | string | ✅ | UUID v4 |
 | `session_id` | string | ✅ | 対応するセッションID |
-| `template_id` | string | ✅ | フィードバック対象のテンプレートID |
-| `reaction` | string | ✅ | `good` \| `neutral` \| `bad` |
-| `reward` | number | ✅ | 変換後の報酬値 |
-| `created_at` | timestamp | ✅ | フィードバック受信日時 |
+| `template_id` | string | ✅ | 対象テンプレートID |
+| `reaction_video_gcs_uri` | string | ✅ | GCS 上の reaction video の URI |
+| `reward` | number | ✅ | reaction video 解析による報酬値 |
+| `created_at` | timestamp | ✅ | 記録日時 |
 
-### 6.6 報酬値の定義
+### 6.6 報酬値の設計
 
-| ユーザーの選択 | reaction | reward | 設計意図 |
-|---|---|---|---|
-| 😺 テンション上がった！ | `good` | `+1.0` | 明確なポジティブ反応 |
-| 😐 まあまあ | `neutral` | `0.0` | 変化なし・情報なし |
-| 😾 興味なし | `bad` | `-0.5` | ネガティブだが強すぎるペナルティは避ける |
+体験モードではフィードバック・報酬計算は行わない。本番モードのみ。
+
+| 方式 | 内容 |
+|---|---|
+| reaction video | 動画再生中に最大8秒間録画した猫の反応映像 |
+| 報酬計算 | Backend が reaction video を解析して reward を算出（AI自動評価）|
+| 旧方式（廃止） | 人間が 😺/😐/😾 を選択する `/feedback` ボタン方式は廃止 |
 
 ---
 
@@ -907,13 +905,13 @@ Cloud Build トリガー起動
 
 | # | 項目 | 内容 | 担当設計書 |
 |---|---|---|---|
-| TBD-1 | 状態キー生成ロジック | 4モデル出力からキー文字列を生成する具体的な変換ルール | 詳細設計（Backend） |
-| TBD-2 | Bandit UCBパラメータ | 探索パラメータ（`c` の値）の設定方針 | 詳細設計（Backend） |
-| TBD-3 | 体験モードBのViTPose++/CLIP処理 | マイク・カメラ入力時にViTPose++・CLIPをどう処理するか | 詳細設計（Backend・Frontend） |
-| TBD-4 | Vertex AI インスタンス移行基準 | CPU → GPU（T4）への移行判断のレイテンシ閾値 | 詳細設計（インフラ） |
-| TBD-5 | GeminiプロンプトのFew-shot例 | 品質担保のためのFew-shot例の設計・検証 | 詳細設計（Backend） |
-| TBD-6 | Firestore セキュリティルール | Firestore Security Rules の詳細定義 | 詳細設計（インフラ） |
-| TBD-7 | ローカル開発時のモックAPI | モデル Endpoint が使えない場合のモック設計 | 詳細設計（Backend） |
-| TBD-8 | テンプレート進化（Layer 6）の実装方針 | Gemini自律生成のトリガー条件・実行タイミング | 詳細設計（Backend） |
-| TBD-9 | フロントエンドコンポーネント分割詳細 | Reactコンポーネント単位の責務・props/state設計 | 詳細設計（Frontend） |
-| TBD-10 | Veo3 ポーリング vs Webhook | 生成完了の検知方式（ポーリング間隔・Webhookサポート有無の確認） | 詳細設計（Backend） |
+| TBD-1 | 状態キー生成ロジック | ✅ **解決済み** — emotion/meow/clip/pose 結合キー実装済み | Backend詳細設計 |
+| TBD-2 | Bandit UCBパラメータ | ✅ **解決済み** — UCB1、α=1.0 で実装。調整は運用フェーズへ | Backend詳細設計 |
+| TBD-3 | 体験モードBのViTPose++/CLIP処理 | ✅ **解決済み** — 体験モードのサンプル選択廃止。全モードでカメラ画像から直接推論 | — |
+| TBD-4 | Vertex AI インスタンス移行基準 | ✅ **解決済み** — CPU `n1-standard-4` で稼働。GPU移行判断は運用フェーズ | インフラ詳細設計 |
+| TBD-5 | GeminiプロンプトのFew-shot例 | 🔲 **継続TBD** — 品質は運用データで改善。Few-shot設計は継続検討 | Backend詳細設計 |
+| TBD-6 | Firestore セキュリティルール | 🔲 **継続TBD** — MVP はハッカソンのため簡易設定。本番前に要対応 | インフラ詳細設計 |
+| TBD-7 | ローカル開発時のモックAPI | 🔲 **継続TBD** — 現状は実Endpointを使用。モック設計は継続検討 | Backend詳細設計 |
+| TBD-8 | テンプレート進化（Layer 6）の実装方針 | 🔲 **継続TBD** — Gemini自律生成は未実装。将来の拡張項目 | Backend詳細設計 |
+| TBD-9 | フロントエンドコンポーネント詳細 | ✅ **解決済み** — `docs/ja/Fronted_Desgin.md`（フロントエンド詳細設計書）に文書化済み | フロントエンド詳細設計 |
+| TBD-10 | Veo3 ポーリング vs Webhook | 🔲 **継続TBD** — 現状ポーリング方式。Webhookサポート確認後に判断 | Backend詳細設計 |
