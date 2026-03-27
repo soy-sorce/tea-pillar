@@ -43,6 +43,26 @@ def test_middleware_adds_request_id_header() -> None:
     assert response.headers["X-Request-ID"]
 
 
+def test_cors_allows_configured_frontend_origin() -> None:
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        environment="test",
+        frontend_origin="https://frontend.example.com",
+    )
+    client = TestClient(app)
+
+    response = client.options(
+        "/generate",
+        headers={
+            "Origin": "https://frontend.example.com",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://frontend.example.com"
+
+
 def test_invalid_payload_returns_400() -> None:
     client = TestClient(create_app())
 

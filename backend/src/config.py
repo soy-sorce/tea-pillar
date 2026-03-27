@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     reward_success_threshold: float = Field(default=1.0)
 
     environment: str = Field(default="development")
+    frontend_origin: str = Field(
+        default="https://video-gen4cat-frontend-94553428765.asia-northeast1.run.app"
+    )
     log_level: str = Field(default="INFO")
 
 

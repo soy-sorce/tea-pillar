@@ -16,8 +16,6 @@ from src.routers import generate, health, reaction
 
 logger = structlog.get_logger(__name__)
 
-FRONTEND_ORIGIN = "https://video-gen4cat-frontend-94553428765.asia-northeast1.run.app"
-
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -32,7 +30,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[FRONTEND_ORIGIN],
+        allow_origins=[settings.frontend_origin],
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
         allow_credentials=False,
