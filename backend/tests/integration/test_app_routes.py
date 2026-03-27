@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 from src.app import create_app
 from src.config import Settings, get_settings
 from src.exceptions import FirestoreError
@@ -44,11 +45,20 @@ def test_middleware_adds_request_id_header() -> None:
 
 
 def test_cors_allows_configured_frontend_origin() -> None:
-    app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        environment="test",
-        frontend_origin="https://frontend.example.com",
+    monkeypatch = MonkeyPatch()
+    monkeypatch.setattr(
+        "src.app.get_settings",
+        lambda: Settings(
+            environment="test",
+            frontend_origin="https://frontend.example.com",
+        ),
     )
+
+    try:
+        app = create_app()
+    finally:
+        monkeypatch.undo()
+
     client = TestClient(app)
 
     response = client.options(
@@ -61,6 +71,13 @@ def test_cors_allows_configured_frontend_origin() -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "https://frontend.example.com"
+
+
+def test_default_frontend_origin_is_localhost_for_safer_local_fallback() -> None:
+    settings = Settings(
+        environment="test",
+    )
+    assert settings.frontend_origin == "http://localhost:5173"
 
 
 def test_invalid_payload_returns_400() -> None:
@@ -83,8 +100,6 @@ def test_custom_application_error_is_serialized() -> None:
         async def execute(self, request: object) -> object:
             del request
             raise FirestoreError(detail="boom")
-
-    from pytest import MonkeyPatch
 
     monkeypatch = MonkeyPatch()
     monkeypatch.setattr("src.routers.generate.GenerateOrchestrator", FailingGenerateOrchestrator)
