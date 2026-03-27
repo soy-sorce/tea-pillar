@@ -4,9 +4,15 @@ import { Volume2, VolumeX } from "lucide-react";
 
 interface VideoPlayerProps {
     src: string;
+    loop?: boolean;
+    onPlay?: () => void;
 }
 
-export function VideoPlayer({ src }: VideoPlayerProps): React.JSX.Element {
+export function VideoPlayer({
+    src,
+    loop = true,
+    onPlay,
+}: VideoPlayerProps): React.JSX.Element {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isMuted, setIsMuted] = useState(true);
 
@@ -23,9 +29,10 @@ export function VideoPlayer({ src }: VideoPlayerProps): React.JSX.Element {
                 ref={videoRef}
                 src={src}
                 autoPlay
-                loop
+                loop={loop}
                 muted={isMuted}
                 playsInline
+                onPlay={onPlay}
                 className="w-full"
                 aria-label="生成された動画"
             />

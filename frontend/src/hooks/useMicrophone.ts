@@ -1,87 +1,115 @@
-// src/hooks/useMicrophone.ts
 import { useCallback, useEffect, useRef, useState } from "react";
-import { blobToBase64 } from "@/lib/audioUtils";
 
-export const MAX_RECORDING_SECONDS = 5;
+import { blobToBase64 } from "@/lib/audioUtils";
+import { MAX_AUDIO_RECORDING_SECONDS } from "@/lib/uploadLimits";
 
 interface UseMicrophoneReturn {
     isRecording: boolean;
     audioBase64: string | null;
-    startRecording: () => Promise<void>;
-    stopRecording: () => void;
     error: string | null;
+    startTimedRecording: (seconds?: number) => Promise<string | null>;
+    resetAudio: () => void;
 }
 
 export function useMicrophone(): UseMicrophoneReturn {
-    const [isRecording, setIsRecording] = useState(false);
-    const [audioBase64, setAudioBase64] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const streamRef = useRef<MediaStream | null>(null);
-    const autoStopTimeoutRef = useRef<number | null>(null);
-    const autoStoppedRef = useRef(false);
+    const stopTimeoutRef = useRef<number | null>(null);
 
-    const clearAutoStopTimeout = useCallback((): void => {
-        if (autoStopTimeoutRef.current !== null) {
-            window.clearTimeout(autoStopTimeoutRef.current);
-            autoStopTimeoutRef.current = null;
-        }
-    }, []);
+    const [isRecording, setIsRecording] = useState(false);
+    const [audioBase64, setAudioBase64] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const stopStream = useCallback((): void => {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
     }, []);
 
-    const startRecording = useCallback(async (): Promise<void> => {
+    const clearTimeoutRef = useCallback((): void => {
+        if (stopTimeoutRef.current !== null) {
+            window.clearTimeout(stopTimeoutRef.current);
+            stopTimeoutRef.current = null;
+        }
+    }, []);
+
+    const resetAudio = useCallback((): void => {
+        setAudioBase64(null);
         setError(null);
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = recorder;
-            streamRef.current = stream;
-            chunksRef.current = [];
-            autoStoppedRef.current = false;
+    }, []);
 
-            recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-            recorder.onstop = async () => {
-                clearAutoStopTimeout();
-                const blob = new Blob(chunksRef.current, { type: "audio/wav" });
-                const base64 = await blobToBase64(blob);
-                setAudioBase64(base64);
-                stopStream();
-                if (autoStoppedRef.current) {
-                    setError(`録音は最大${MAX_RECORDING_SECONDS}秒です`);
-                }
-            };
+    const startTimedRecording = useCallback(
+        async (seconds = MAX_AUDIO_RECORDING_SECONDS): Promise<string | null> => {
+            setError(null);
+            setAudioBase64(null);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const recorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = recorder;
+                streamRef.current = stream;
+                chunksRef.current = [];
 
-            recorder.start();
-            autoStopTimeoutRef.current = window.setTimeout(() => {
-                autoStoppedRef.current = true;
-                recorder.stop();
+                const result = await new Promise<string | null>((resolve, reject) => {
+                    recorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunksRef.current.push(event.data);
+                        }
+                    };
+                    recorder.onerror = () => reject(new Error("audio recording failed"));
+                    recorder.onstop = async () => {
+                        try {
+                            const blob = new Blob(chunksRef.current, {
+                                type: recorder.mimeType || "audio/webm",
+                            });
+                            const base64 = await blobToBase64(blob);
+                            setAudioBase64(base64);
+                            resolve(base64);
+                        } catch (recordingError) {
+                            reject(recordingError);
+                        } finally {
+                            setIsRecording(false);
+                            clearTimeoutRef();
+                            stopStream();
+                        }
+                    };
+
+                    recorder.start();
+                    setIsRecording(true);
+                    stopTimeoutRef.current = window.setTimeout(() => {
+                        if (recorder.state === "recording") {
+                            recorder.stop();
+                        }
+                    }, seconds * 1000);
+                });
+
+                return result;
+            } catch {
                 setIsRecording(false);
-            }, MAX_RECORDING_SECONDS * 1000);
-            setIsRecording(true);
-        } catch (_e) {
-            setError("マイクへのアクセスが許可されていません");
-        }
-    }, [clearAutoStopTimeout, stopStream]);
+                clearTimeoutRef();
+                stopStream();
+                setError("マイクへのアクセスが許可されていません");
+                return null;
+            }
+        },
+        [clearTimeoutRef, stopStream],
+    );
 
-    const stopRecording = useCallback((): void => {
-        if (mediaRecorderRef.current?.state === "recording") {
-            mediaRecorderRef.current.stop();
-        }
-        clearAutoStopTimeout();
-        setIsRecording(false);
-    }, [clearAutoStopTimeout]);
-
-    useEffect(() => {
-        return () => {
-            clearAutoStopTimeout();
+    useEffect(
+        () => () => {
+            clearTimeoutRef();
+            if (mediaRecorderRef.current?.state === "recording") {
+                mediaRecorderRef.current.stop();
+            }
             stopStream();
-        };
-    }, [clearAutoStopTimeout, stopStream]);
+        },
+        [clearTimeoutRef, stopStream],
+    );
 
-    return { isRecording, audioBase64, startRecording, stopRecording, error };
+    return {
+        isRecording,
+        audioBase64,
+        error,
+        startTimedRecording,
+        resetAudio,
+    };
 }

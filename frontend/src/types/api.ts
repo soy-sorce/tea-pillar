@@ -1,6 +1,3 @@
-// src/types/api.ts
-// Backend API のリクエスト/レスポンス型定義
-
 export interface GenerateRequest {
     mode: "experience" | "production";
     image_base64: string;
@@ -16,12 +13,19 @@ export interface GenerateResponse {
     template_name: string;
 }
 
-export interface FeedbackRequest {
+export interface ReactionUploadUrlResponse {
     session_id: string;
-    reaction: "good" | "neutral" | "bad";
+    upload_url: string;
+    reaction_video_gcs_uri: string;
+    expires_in_seconds: number;
 }
 
-export interface FeedbackResponse {
-    reward: number;
-    updated_template_id: string;
+export interface ReactionUploadCompleteRequest {
+    reaction_video_gcs_uri: string;
+}
+
+export interface ReactionUploadResponse {
+    session_id: string;
+    status: "accepted";
+    reaction_video_gcs_uri: string;
 }

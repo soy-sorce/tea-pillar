@@ -1,6 +1,7 @@
 """Bandit base interface."""
 
 from abc import ABC, abstractmethod
+from typing import Self
 
 from src.models.internal import BanditSelection
 
@@ -10,17 +11,17 @@ class BanditBase(ABC):
 
     @abstractmethod
     async def select(
-        self,
+        self: Self,
         state_key: str,
         predicted_rewards: dict[str, float],
     ) -> BanditSelection:
-        """Select a template."""
+        """Select a template for the given state."""
 
     @abstractmethod
     async def update(
-        self,
+        self: Self,
         template_id: str,
         state_key: str,
         reward: float,
     ) -> None:
-        """Update the post-feedback statistics."""
+        """Update the arm posterior for the given state and reward."""

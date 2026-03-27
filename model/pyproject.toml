@@ -5,14 +5,21 @@ description = "Custom model endpoint for nekkoflix"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "opencv-python-headless>=4.11.0.86",
     "fastapi>=0.115.0",
     "google-cloud-storage>=2.19.0",
+    "huggingface-hub>=0.30.0",
     "joblib>=1.4.0",
+    "lightgbm>=4.6.0",
+    "mediapipe>=0.10.14",
     "numpy>=1.26.0",
     "pandas>=2.0.0",
     "pillow>=10.0.0",
+    "python-dotenv>=1.1.0",
+    "scikit-learn>=1.6.0",
     "torch>=2.4.0",
     "transformers>=4.46.0",
+    "ultralytics>=8.3.0",
     "uvicorn[standard]>=0.32.0",
 ]
 
@@ -32,6 +39,8 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "ANN"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/feature_extractor.py" = ["ANN401"]
+"src/reward/gaze_estimator.py" = ["ANN401"]
+"src/reward/paw_detector.py" = ["ANN401"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -46,13 +55,22 @@ module = [
     "google.cloud.storage.*",
     "joblib",
     "joblib.*",
+    "lightgbm",
+    "lightgbm.*",
+    "mediapipe",
+    "mediapipe.*",
     "numpy",
     "numpy.*",
+    "pandas",
+    "pandas.*",
+    "cv2",
     "PIL",
     "PIL.*",
     "torch",
     "torch.*",
     "transformers",
     "transformers.*",
+    "ultralytics",
+    "ultralytics.*",
 ]
 ignore_missing_imports = true

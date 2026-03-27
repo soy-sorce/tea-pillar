@@ -6,12 +6,11 @@ from typing import Self
 import structlog
 import vertexai
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
-from vertexai.generative_models import GenerativeModel
-
 from src.config import Settings
 from src.exceptions import GeminiError, NotConfiguredError
 from src.models.internal import CatFeatures
 from src.services.gemini.prompt_builder import PromptBuilder
+from vertexai.generative_models import GenerativeModel
 
 logger = structlog.get_logger(__name__)
 
@@ -69,7 +68,7 @@ class GeminiClient:
             response = await asyncio.wait_for(
                 model.generate_content_async(
                     prompt,
-                    generation_config={"max_output_tokens": 512, "temperature": 0.7},
+                    generation_config={"max_output_tokens": 4096, "temperature": 0.7},
                 ),
                 timeout=self._settings.gemini_timeout,
             )

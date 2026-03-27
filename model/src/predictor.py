@@ -18,7 +18,14 @@ class Predictor:
     def __init__(self: Self) -> None:
         self._artifacts = load_artifacts()
         self._feature_extractor = FeatureExtractor()
-        self._regressor = RewardRegressor(artifacts=self._artifacts)
+        self._regressor = RewardRegressor(self._artifacts)
+
+    @property
+    def artifact_source(self: Self) -> str:
+        """Return the underlying artifact source used by the predictor."""
+        if self._artifacts is None:
+            return "feature-extractor-only"
+        return self._artifacts.source
 
     def predict(self: Self, request: PredictionRequest) -> PredictionResponse:
         """Run feature extraction and reward prediction."""

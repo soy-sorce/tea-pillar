@@ -14,7 +14,6 @@ def test_build_includes_template_state_and_features() -> None:
         emotion_label="happy",
         clip_top_label="curious_cat",
         meow_label=None,
-        predicted_rewards={"video-1": 0.5},
     )
 
     prompt = builder.build(
@@ -39,7 +38,6 @@ def test_build_uses_default_text_when_user_context_is_missing() -> None:
         emotion_label="angry",
         clip_top_label="alert_cat",
         meow_label="insistent",
-        predicted_rewards={"video-1": 0.2},
     )
 
     prompt = builder.build(
@@ -63,7 +61,6 @@ def test_build_sorts_feature_lines_and_includes_constraints() -> None:
         emotion_label="happy",
         clip_top_label="curious_cat",
         meow_label="waiting_for_food",
-        predicted_rewards={"video-1": 0.2},
     )
 
     prompt = builder.build(
@@ -89,6 +86,11 @@ def test_build_supports_fallback_without_cat_features() -> None:
     )
 
     assert "A glowing toy floating in the air." in prompt
-    assert "[状態キー]\nfallback" in prompt
-    assert "- emotion_label: unknown" in prompt
-    assert "（利用不可: Vertex AI fallback）" in prompt
+    assert "You create exactly one video prompt for a cat-focused video." in prompt
+    assert "[Template]" in prompt
+    assert "[Owner Context]\nnone" in prompt
+    assert "[Requirements]" in prompt
+    assert "Do not mention labels, state keys, fallback, or unavailable analysis." in prompt
+    assert "Prioritize originality, playfulness, and strong visual interest." in prompt
+    assert "unknown" not in prompt
+    assert "Vertex AI fallback" not in prompt

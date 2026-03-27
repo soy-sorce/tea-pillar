@@ -80,6 +80,8 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+model/train-data-20260326T165440Z-3-001.zip
+model/training_output/
 
 ###
 # Terraform

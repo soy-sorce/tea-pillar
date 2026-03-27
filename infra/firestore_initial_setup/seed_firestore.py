@@ -1,4 +1,4 @@
-"""Seed Firestore with initial templates and optional bandit_table entries."""
+"""Seed Firestore with templates and optional Thompson bandit state."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from google.cloud import firestore
 from google.cloud.firestore import AsyncClient
 
 TEMPLATES_COLLECTION = "templates"
-BANDIT_TABLE_COLLECTION = "bandit_table"
+BANDIT_STATE_COLLECTION = "bandit_state"
 
 EMOTION_LABELS = ("happy", "sad", "angry")
 CLIP_TOP_LABELS = (
@@ -68,9 +68,9 @@ def parse_args() -> argparse.Namespace:
         help="Path to templates JSON.",
     )
     parser.add_argument(
-        "--seed-bandit-table",
+        "--seed-bandit-state",
         action="store_true",
-        help="Also initialize unknown_* state keys in bandit_table.",
+        help="Also initialize unknown_* state keys in bandit_state.",
     )
     parser.add_argument(
         "--dry-run",
@@ -112,7 +112,7 @@ async def seed_templates(
         )
 
 
-async def seed_bandit_table(
+async def seed_bandit_state(
     client: AsyncClient,
     templates: list[SeedTemplate],
     *,
@@ -124,19 +124,21 @@ async def seed_bandit_table(
             document = {
                 "template_id": template.template_id,
                 "state_key": state_key,
-                "selection_count": 1,
-                "cumulative_reward": 0.0,
-                "mean_reward": 0.0,
+                "alpha": 1.0,
+                "beta": 1.0,
+                "selection_count": 0,
+                "last_reward": None,
+                "reward_sum": 0.0,
                 "updated_at": firestore.SERVER_TIMESTAMP,
             }
             if dry_run:
                 print(
-                    f"[dry-run] bandit_table/{document_id}: "
+                    f"[dry-run] bandit_state/{document_id}: "
                     f"{json.dumps({k: v for k, v in document.items() if k != 'updated_at'}, ensure_ascii=False)}"
                 )
                 continue
             await (
-                client.collection(BANDIT_TABLE_COLLECTION)
+                client.collection(BANDIT_STATE_COLLECTION)
                 .document(document_id)
                 .set(document)
             )
@@ -153,10 +155,10 @@ async def main() -> None:
     print(f"Loaded templates: {len(templates)}")
     await seed_templates(client, templates, dry_run=args.dry_run)
 
-    if args.seed_bandit_table:
+    if args.seed_bandit_state:
         state_keys = build_initial_state_keys()
-        print(f"Initializing bandit_table for {len(state_keys)} state keys")
-        await seed_bandit_table(client, templates, dry_run=args.dry_run)
+        print(f"Initializing bandit_state for {len(state_keys)} state keys")
+        await seed_bandit_state(client, templates, dry_run=args.dry_run)
 
     if args.dry_run:
         print("Dry run completed.")

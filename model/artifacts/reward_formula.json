@@ -1,0 +1,5 @@
+{
+  "paw_alpha": 0.3,
+  "gaze_beta": 0.05,
+  "reward_formula_version": "v2-video-reward"
+}

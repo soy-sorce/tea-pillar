@@ -39,6 +39,7 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-backend:$COMMIT_SHA
       - --region=${_REGION}
       - --platform=managed
+      - --set-env-vars=MODEL_SERVICE_URL=${_MODEL_SERVICE_URL},REACTION_VIDEO_BUCKET_NAME=${_REACTION_VIDEO_BUCKET_NAME},REACTION_VIDEO_UPLOAD_URL_EXPIRES_SECONDS=${_REACTION_VIDEO_UPLOAD_URL_EXPIRES_SECONDS}
       - --quiet
 
 images:
@@ -52,3 +53,6 @@ substitutions:
   _REGION: "asia-northeast1"
   _REPOSITORY: "nekkoflix"
   _SERVICE_NAME: "video-gen4cat-backend"
+  _MODEL_SERVICE_URL: "https://REPLACE_ME_MODEL_SERVICE_URL"
+  _REACTION_VIDEO_BUCKET_NAME: "REPLACE_ME_REACTION_BUCKET"
+  _REACTION_VIDEO_UPLOAD_URL_EXPIRES_SECONDS: "900"

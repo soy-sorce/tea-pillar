@@ -1,4 +1,5 @@
 // src/contexts/GenerationContext.tsx
+/* eslint-disable react-refresh/only-export-components */
 import {
     createContext,
     useCallback,

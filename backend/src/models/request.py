@@ -14,8 +14,16 @@ class GenerateRequest(BaseModel):
     user_context: str | None = Field(default=None, max_length=500)
 
 
-class FeedbackRequest(BaseModel):
-    """POST /feedback request."""
+class RewardAnalysisTaskRequest(BaseModel):
+    """Task payload for internal reward analysis."""
 
     session_id: str = Field(..., min_length=1)
-    reaction: Literal["good", "neutral", "bad"] = Field(...)
+    reaction_video_gcs_uri: str = Field(..., min_length=1)
+    template_id: str = Field(..., min_length=1)
+    state_key: str = Field(..., min_length=1)
+
+
+class ReactionUploadCompleteRequest(BaseModel):
+    """POST /sessions/{session_id}/reaction request."""
+
+    reaction_video_gcs_uri: str = Field(..., min_length=1)

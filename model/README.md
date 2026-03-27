@@ -1,21 +1,30 @@
 # model
 
-`docs/ja/MODELING.md` と `docs/_internal/Phase0_Endpoint_Contract.md` に準拠した
-Custom Endpoint 実装ディレクトリ。
+`docs/ja/MODELING.md` に準拠したモデル実装ディレクトリ。Cloud Run 上の FastAPI
+サービスとして動かし、役割を次の 2 つに分ける。
 
-現時点では、`model/artifacts/` に学習成果物一式を配置済みである。実行時の挙動は以下。
+- `/predict`: 静止画と任意音声からコンテキスト特徴量・補助ラベル・候補動画ごとの
+  `predicted_rewards` を返す
+- `/analyze-reward`: 反応動画から `paw_hit_count` と `gaze_duration_seconds` を算出し、
+  `reward` を返す
 
-- 成果物が `model/artifacts/` にあればそれをロードする
-- 画像特徴量は `tea-pillar-ML-analysis` と同じ `emotion / pose / clip` 抽出器で計算する
-- `meow` は v1 では optional とし、未統合時は `null` を返す
-
-通常運用では、実 extractor と artifact を使う想定である。
+Thompson Sampling 自体は backend が Firestore の `bandit_state` を使って実行する。
+この `model/` では、動画ベース reward で学習した reward regressor を `/predict`
+で利用する。
 
 ## Current status
 
-- `/predict` と `/health` を持つ FastAPI app を提供する
-- `feature_columns.json`, `video_id_mapping.json`, `clip_prompts.json`,
-  `training_metadata.json` は v1 契約準拠の雛形を配置済み
-- `reward_regressor.joblib` を含む artifact 一式を配置済み
-- `Predictor` は artifact を読み込んで `predicted_rewards` を返せる
+- `/`, `/predict`, `/analyze-reward`, `/health` を持つ FastAPI app を提供する
+- `reward_regressor.joblib`, `feature_columns.json`, `bandit_params.json`,
+  `feature_schema.json`, `query_mapping.json`, `training_metadata.json`,
+  `reward_formula.json` を artifact bundle として扱う
 - `FeatureExtractor` は ML-analysis の `MultiModalFeatureExtractor` と同系統の実装を持つ
+- `RewardRegressor` は `(before features, template_id) -> reward` を予測する
+- artifact はローカルディレクトリまたは Hugging Face Hub から解決できる
+- `/analyze-reward` は GCS 上の反応動画を読み、YOLOv8 と MediaPipe を用いた
+  動画ベース reward 解析を行う
+
+## Related docs
+
+- `HUGGINGFACE_PUBLISHING.md`
+- `CLOUD_RUN_DEPLOY.md`

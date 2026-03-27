@@ -1,9 +1,9 @@
 // src/hooks/useGenerate.ts
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { post, ApiError } from "@/lib/api";
+import { ApiError, generateVideo } from "@/lib/api";
 import { useGenerationContext } from "@/contexts/GenerationContext";
-import type { GenerateRequest, GenerateResponse } from "@/types/api";
+import type { GenerateRequest } from "@/types/api";
 
 interface UseGenerateReturn {
     generate: (req: GenerateRequest) => Promise<void>;
@@ -12,17 +12,18 @@ interface UseGenerateReturn {
 
 export function useGenerate(): UseGenerateReturn {
     const navigate = useNavigate();
-    const { setLoading, setDone, setError } = useGenerationContext();
+    const { setInput, setLoading, setDone, setError } = useGenerationContext();
     const [isLoading, setIsLoading] = useState(false);
 
     const generate = useCallback(
         async (req: GenerateRequest): Promise<void> => {
             setIsLoading(true);
+            setInput(req);
             setLoading();
             void navigate("/result");
 
             try {
-                const data = await post<GenerateResponse>("/generate", req);
+                const data = await generateVideo(req);
                 setDone(data);
             } catch (e) {
                 if (e instanceof ApiError) {
@@ -34,7 +35,7 @@ export function useGenerate(): UseGenerateReturn {
                 setIsLoading(false);
             }
         },
-        [navigate, setLoading, setDone, setError]
+        [navigate, setInput, setLoading, setDone, setError]
     );
 
     return { generate, isLoading };

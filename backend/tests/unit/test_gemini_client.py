@@ -18,7 +18,6 @@ def _features() -> CatFeatures:
         emotion_label="happy",
         clip_top_label="curious_cat",
         meow_label=None,
-        predicted_rewards={"video-1": 0.1},
     )
 
 

@@ -11,24 +11,29 @@ class SessionDocument(BaseModel):
     session_id: str
     mode: str
     status: str
+    reward_status: str = "not_started"
     state_key: str | None = None
     template_id: str | None = None
-    fallback_used: bool | None = None
     user_context: str | None = None
     video_gcs_uri: str | None = None
+    reaction_video_gcs_uri: str | None = None
+    reward_event_id: str | None = None
     error: str | None = None
     created_at: datetime | None = None
+    generated_at: datetime | None = None
     completed_at: datetime | None = None
 
 
-class BanditTableDocument(BaseModel):
-    """bandit_table/{state_key}__{template_id}."""
+class BanditStateDocument(BaseModel):
+    """bandit_state/{state_key}__{template_id}."""
 
     template_id: str
     state_key: str
-    selection_count: int = Field(default=1)
-    cumulative_reward: float = Field(default=0.0)
-    mean_reward: float = Field(default=0.0)
+    alpha: float = Field(default=1.0)
+    beta: float = Field(default=1.0)
+    selection_count: int = Field(default=0)
+    last_reward: float | None = None
+    reward_sum: float = Field(default=0.0)
     updated_at: datetime | None = None
 
 
@@ -43,12 +48,18 @@ class TemplateDocument(BaseModel):
     created_at: datetime | None = None
 
 
-class FeedbackDocument(BaseModel):
-    """feedbacks/{feedback_id}."""
+class RewardEventDocument(BaseModel):
+    """reward_events/{reward_event_id}."""
 
-    feedback_id: str
+    reward_event_id: str
     session_id: str
     template_id: str
-    reaction: str
+    state_key: str
+    reaction_video_gcs_uri: str
+    paw_hit_count: int
+    gaze_duration_seconds: float
     reward: float
+    analysis_status: str = "done"
+    analysis_model_versions: dict[str, str] = Field(default_factory=dict)
     created_at: datetime | None = None
+    analyzed_at: datetime | None = None

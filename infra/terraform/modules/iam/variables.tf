@@ -22,6 +22,14 @@ variable "api_gateway_service_name" {
   type = string
 }
 
+variable "model_service_name" {
+  type = string
+}
+
 variable "gcs_bucket_name" {
+  type = string
+}
+
+variable "reaction_video_bucket_name" {
   type = string
 }

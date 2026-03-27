@@ -1,7 +1,6 @@
 """Health-related routes."""
 
 from fastapi import APIRouter, Depends, Response
-
 from src.config import Settings, get_settings
 from src.models.response import HealthResponse, RootResponse
 
