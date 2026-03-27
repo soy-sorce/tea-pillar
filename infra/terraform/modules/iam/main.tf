@@ -70,6 +70,20 @@ resource "google_cloud_run_v2_service_iam_member" "model_invoker_by_backend" {
   member   = "serviceAccount:${google_service_account.backend.email}"
 }
 
+resource "google_cloud_run_v2_service_iam_member" "backend_invoker_by_apigateway" {
+  project  = var.project_id
+  location = var.region
+  name     = var.backend_service_name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.apigateway.email}"
+}
+
+resource "google_project_iam_member" "backend_vertex_ai_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.backend.email}"
+}
+
 resource "google_project_iam_member" "cloudbuild_ar_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
