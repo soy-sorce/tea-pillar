@@ -19,7 +19,7 @@
 
 ```bash
 python infra/firestore_initial_setup/seed_firestore.py \
-  --project-id gcp-hackathon-2026 \
+  --project-id project-a326ee7b-e9be-4dc7-a75 \
   --database-id "(default)" \
   --seed-bandit-state
 ```
@@ -28,7 +28,7 @@ python infra/firestore_initial_setup/seed_firestore.py \
 
 ```bash
 python infra/firestore_initial_setup/seed_firestore.py \
-  --project-id gcp-hackathon-2026 \
+  --project-id project-a326ee7b-e9be-4dc7-a75 \
   --dry-run
 ```
 

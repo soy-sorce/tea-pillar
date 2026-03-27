@@ -16,9 +16,6 @@ infra/
 │   │   ├── cloudbuild-backend.yaml
 │   │   ├── cloudbuild-frontend.yaml
 │   │   └── cloudbuild-model.yaml
-│   └── registry/
-│       ├── push_backend_image.sh
-│       └── push_frontend_image.sh
 ├── firestore_initial_setup/
 │   ├── seed_firestore.py
 │   └── templates.json
