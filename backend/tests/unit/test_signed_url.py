@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from pytest import MonkeyPatch
@@ -49,10 +50,6 @@ def test_generate_builds_signed_url(monkeypatch: MonkeyPatch) -> None:
         def bucket(self, bucket_name: str) -> FakeBucket:
             return FakeBucket(bucket_name)
 
-    monkeypatch.setattr(
-        "src.services.veo.signed_url._LOCAL_SIGNING_CREDENTIALS_PATH",
-        type("FakePath", (), {"exists": staticmethod(lambda: False)})(),
-    )
     fake_credentials = SimpleNamespace(
         service_account_email="runtime-sa@example.com",
         token="runtime-token",
@@ -67,7 +64,11 @@ def test_generate_builds_signed_url(monkeypatch: MonkeyPatch) -> None:
         FakeStorageClient,
     )
     generator = SignedUrlGenerator(
-        settings=Settings(gcp_project_id="demo-project", gcs_signed_url_expiration_hours=3),
+        settings=Settings(
+            gcp_project_id="demo-project",
+            gcs_signed_url_expiration_hours=3,
+            gcs_signing_service_account_file="",
+        ),
     )
 
     url = generator.generate("gs://bucket/path/to/video.mp4")
@@ -107,18 +108,6 @@ def test_generate_uses_local_service_account_in_development(monkeypatch: MonkeyP
 
     fake_credentials = object()
 
-    monkeypatch.setattr(
-        "src.services.veo.signed_url._LOCAL_SIGNING_CREDENTIALS_PATH",
-        type(
-            "FakePath",
-            (),
-            {
-                "exists": staticmethod(lambda: True),
-                "__str__": lambda self: "/tmp/key.json",
-            },
-        )(),
-    )
-
     def fake_from_service_account_file(path: str) -> object:
         captured["credentials_path"] = path
         return fake_credentials
@@ -128,9 +117,14 @@ def test_generate_uses_local_service_account_in_development(monkeypatch: MonkeyP
         fake_from_service_account_file,
     )
     monkeypatch.setattr("src.services.veo.signed_url.StorageClient", FakeStorageClient)
+    monkeypatch.setattr("src.services.veo.signed_url.Path.exists", lambda self: True)
 
     generator = SignedUrlGenerator(
-        settings=Settings(gcp_project_id="demo-project", environment="development"),
+        settings=Settings(
+            gcp_project_id="demo-project",
+            environment="development",
+            gcs_signing_service_account_file="/tmp/key.json",
+        ),
     )
     url = generator.generate("gs://bucket/path/to/video.mp4")
 
@@ -145,10 +139,6 @@ def test_generate_uses_local_service_account_in_development(monkeypatch: MonkeyP
 def test_generate_raises_when_runtime_credentials_lack_service_account_email(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "src.services.veo.signed_url._LOCAL_SIGNING_CREDENTIALS_PATH",
-        type("FakePath", (), {"exists": staticmethod(lambda: False)})(),
-    )
     fake_credentials = SimpleNamespace(
         service_account_email=None,
         token="runtime-token",
@@ -160,7 +150,11 @@ def test_generate_raises_when_runtime_credentials_lack_service_account_email(
     )
 
     generator = SignedUrlGenerator(
-        settings=Settings(gcp_project_id="demo-project", environment="prod"),
+        settings=Settings(
+            gcp_project_id="demo-project",
+            environment="prod",
+            gcs_signing_service_account_file="",
+        ),
     )
 
     try:
@@ -169,3 +163,15 @@ def test_generate_raises_when_runtime_credentials_lack_service_account_email(
         assert exc.detail == "runtime credentials do not expose service_account_email"
     else:
         raise AssertionError("NotConfiguredError was not raised")
+
+
+def test_is_local_signing_mode_returns_false_when_configured_file_is_missing() -> None:
+    generator = SignedUrlGenerator(
+        settings=Settings(
+            gcp_project_id="demo-project",
+            environment="development",
+            gcs_signing_service_account_file=str(Path("/tmp/missing-key.json")),
+        ),
+    )
+
+    assert generator._is_local_signing_mode() is False

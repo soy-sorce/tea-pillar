@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     gcs_bucket_name: str = Field(default="")
     reaction_video_bucket_name: str = Field(default="")
     gcs_signed_url_expiration_hours: int = Field(default=1)
+    gcs_signing_service_account_file: str = Field(default="")
     reaction_video_upload_url_expires_seconds: int = Field(default=900)
 
     firestore_database_id: str = Field(default="(default)")
