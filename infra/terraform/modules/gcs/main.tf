@@ -18,9 +18,9 @@ resource "google_storage_bucket" "this" {
   }
 
   cors {
-    origin          = ["*"]
-    method          = ["GET"]
-    response_header = ["Content-Type"]
-    max_age_seconds = 3600
+    origin          = var.cors_origins
+    method          = var.cors_methods
+    response_header = var.cors_response_headers
+    max_age_seconds = var.cors_max_age_seconds
   }
 }

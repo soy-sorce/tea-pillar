@@ -82,6 +82,15 @@ variable "frontend_backend_url_override" {
   default = ""
 }
 
+variable "backend_frontend_origin" {
+  type = string
+}
+
+variable "backend_log_level" {
+  type    = string
+  default = "INFO"
+}
+
 variable "github_owner" {
   type = string
 }
@@ -105,19 +114,12 @@ variable "backend_trigger_name" {
   default = "nekkoflix-backend-trigger-prod"
 }
 
+variable "model_trigger_name" {
+  type    = string
+  default = "nekkoflix-model-trigger-prod"
+}
+
 variable "api_gateway_trigger_name" {
   type    = string
   default = "nekkoflix-apigateway-trigger-prod"
-}
-
-variable "api_gateway_jwt_issuer" {
-  type = string
-}
-
-variable "api_gateway_jwt_jwks_uri" {
-  type = string
-}
-
-variable "api_gateway_jwt_audience" {
-  type = string
 }

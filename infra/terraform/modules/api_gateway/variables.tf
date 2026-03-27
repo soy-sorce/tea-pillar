@@ -29,15 +29,3 @@ variable "gateway_service_account_email" {
 variable "openapi_template_path" {
   type = string
 }
-
-variable "jwt_issuer" {
-  type = string
-}
-
-variable "jwt_jwks_uri" {
-  type = string
-}
-
-variable "jwt_audience" {
-  type = string
-}
