@@ -100,7 +100,7 @@ graph TB
 | コンポーネント | 主責務 |
 |---|---|
 | Frontend | 画像・音声・文脈の送信、動画再生、reaction video 録画、GCS direct upload |
-| API Gateway | 一般公開 API の入口、JWT 検証 |
+| API Gateway | 一般公開 API の入口、backend 公開境界の維持、将来のアクセス統制 / レート制御の入口 |
 | Backend | session 管理、model 呼び出し、bandit 選択、生成統括、reaction upload URL 発行、upload 完了通知、BackgroundTasks 起動、Firestore 更新 |
 | Model Service | 文脈推論、reward 解析 |
 | Firestore | template / session / reward / bandit 状態の正本 |
@@ -195,6 +195,12 @@ API Gateway 配下に置くのは以下のみ。
 - `POST /generate`
 - `POST /sessions/{session_id}/reaction-upload-url`
 - `POST /sessions/{session_id}/reaction`
+
+現行 bootstrap 方針:
+
+- API Gateway 自体は維持する
+- JWT 認証は初期構築段階では有効化しない
+- 将来必要になった段階で OpenAPI / Terraform に認証設定を追加する
 
 制約:
 
@@ -391,6 +397,11 @@ reward analysis は backend process 内の `BackgroundTasks` で起動する。
 - 必要に応じて GCS read
 - 必要に応じて Secret Manager read
 
+補足:
+
+- 現行の既定 deploy では `model/artifacts/` を image に同梱するため、model service が起動時に `HF_TOKEN` を必須とする設計は採らない
+- Hugging Face Hub は artifact bundle を image 外で差し替えたい場合の optional path とする
+
 ---
 
 ## 7. CI/CD 設計
@@ -399,6 +410,7 @@ reward analysis は backend process 内の `BackgroundTasks` で起動する。
 
 - frontend trigger
 - backend trigger
+- model trigger
 - apigateway trigger
 
 ### 7.2 backend deploy 時に注入する主設定
@@ -407,7 +419,14 @@ reward analysis は backend process 内の `BackgroundTasks` で起動する。
 - `REACTION_VIDEO_BUCKET_NAME`
 - `REACTION_VIDEO_UPLOAD_URL_EXPIRES_SECONDS`
 
-### 7.3 API Gateway deploy
+### 7.3 model deploy の既定
+
+- `model/Dockerfile` で `model/artifacts/` を image に同梱する
+- Cloud Build は model image を build / push / deploy する
+- 既定では `HF_MODEL_REPO_ID` / `HF_TOKEN` を Cloud Run に注入しない
+- 将来 Hugging Face artifact を直接読む場合のみ optional env / secret として追加する
+
+### 7.4 API Gateway deploy
 
 OpenAPI には一般公開 API のみ含める。
 
@@ -418,6 +437,11 @@ OpenAPI には一般公開 API のみ含める。
 - `/generate`
 - `/sessions/{session_id}/reaction-upload-url`
 - `/sessions/{session_id}/reaction`
+
+補足:
+
+- 初期構築では JWT 関連の変数を tfvars から要求しない
+- API Gateway は backend URL のルーティング境界として維持する
 
 ---
 
@@ -468,6 +492,8 @@ OpenAPI には一般公開 API のみ含める。
 更新内容:
 
 - backend deploy 時に reaction video / signed URL 用 env を渡す
+- model 専用 `cloudbuild-model.yaml` を追加する
+- backend trigger から `model/**` を外し、model trigger で個別 deploy する
 
 ### 9.4 `infra/firestore_initial_setup`
 

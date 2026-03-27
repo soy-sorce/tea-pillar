@@ -10,9 +10,6 @@ steps:
         rendered = (
             template
             .replace("${backend_url}", "${_BACKEND_URL}")
-            .replace("${jwt_issuer}", "${_JWT_ISSUER}")
-            .replace("${jwt_jwks_uri}", "${_JWT_JWKS_URI}")
-            .replace("${jwt_audience}", "${_JWT_AUDIENCE}")
         )
         Path("/workspace/openapi.rendered.yaml").write_text(rendered, encoding="utf-8")
 
@@ -56,7 +53,4 @@ substitutions:
   _API_CONFIG_ID: "v1"
   _GATEWAY_ID: "video-gen4cat-gateway"
   _BACKEND_URL: "REPLACE_ME_BACKEND_URL"
-  _JWT_ISSUER: "REPLACE_ME_JWT_ISSUER"
-  _JWT_JWKS_URI: "REPLACE_ME_JWT_JWKS_URI"
-  _JWT_AUDIENCE: "REPLACE_ME_JWT_AUDIENCE"
   _GATEWAY_SERVICE_ACCOUNT: "REPLACE_ME_GATEWAY_SERVICE_ACCOUNT"

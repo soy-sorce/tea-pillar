@@ -1,10 +1,10 @@
-project_id                       = "gcp-hackathon-2026"
+project_id                       = "project-a326ee7b-e9be-4dc7-a75"
 region                           = "asia-northeast1"
 environment                      = "prod"
 
 artifact_registry_repository_id  = "nekkoflix"
-gcs_bucket_name                  = "REPLACE_ME_GCS_BUCKET"
-reaction_video_bucket_name       = "REPLACE_ME_REACTION_VIDEO_BUCKET"
+gcs_bucket_name                  = "nekkoflix-veo-output-a326ee7b-e9be-4dc7-a75"
+reaction_video_bucket_name       = "nekkoflix-reaction-video-a326ee7b-e9be-4dc7-a75"
 reaction_video_upload_url_expires_seconds = 900
 firestore_database_id            = "(default)"
 
@@ -16,10 +16,8 @@ api_gateway_api_id               = "nekkoflix-api"
 api_gateway_config_id            = "v1"
 backend_url                      = "https://REPLACE_ME_BACKEND_URL"
 model_service_url                = "https://REPLACE_ME_MODEL_SERVICE_URL"
+backend_frontend_origin          = "https://REPLACE_ME_FRONTEND_URL"
+backend_log_level                = "INFO"
 
 github_owner                     = "REPLACE_ME_GITHUB_OWNER"
 github_repo_name                 = "tea-pillar"
-
-api_gateway_jwt_issuer           = "REPLACE_ME_JWT_ISSUER"
-api_gateway_jwt_jwks_uri         = "REPLACE_ME_JWKS_URI"
-api_gateway_jwt_audience         = "REPLACE_ME_JWT_AUDIENCE"

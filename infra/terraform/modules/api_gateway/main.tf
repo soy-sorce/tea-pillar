@@ -26,10 +26,7 @@ resource "google_project_service" "servicecontrol" {
 
 locals {
   openapi_rendered = templatefile(var.openapi_template_path, {
-    backend_url  = var.backend_url
-    jwt_issuer   = var.jwt_issuer
-    jwt_jwks_uri = var.jwt_jwks_uri
-    jwt_audience = var.jwt_audience
+    backend_url = var.backend_url
   })
 }
 
