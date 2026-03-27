@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Self
 
+from src.models.firestore import TemplateDocument
 from src.models.internal import BanditSelection
 
 
@@ -14,6 +15,7 @@ class BanditBase(ABC):
         self: Self,
         state_key: str,
         predicted_rewards: dict[str, float],
+        templates: list[TemplateDocument] | None = None,
     ) -> BanditSelection:
         """Select a template for the given state."""
 

@@ -4,14 +4,16 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.domain.statuses import RewardStatus, SessionMode, SessionStatus
+
 
 class SessionDocument(BaseModel):
     """sessions/{session_id}."""
 
     session_id: str
-    mode: str
-    status: str
-    reward_status: str = "not_started"
+    mode: SessionMode
+    status: SessionStatus
+    reward_status: RewardStatus = RewardStatus.NOT_STARTED
     state_key: str | None = None
     template_id: str | None = None
     user_context: str | None = None
@@ -59,7 +61,7 @@ class RewardEventDocument(BaseModel):
     paw_hit_count: int
     gaze_duration_seconds: float
     reward: float
-    analysis_status: str = "done"
+    analysis_status: str = RewardStatus.DONE
     analysis_model_versions: dict[str, str] = Field(default_factory=dict)
     created_at: datetime | None = None
     analyzed_at: datetime | None = None

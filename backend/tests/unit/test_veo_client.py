@@ -7,9 +7,9 @@ from typing import cast
 
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
 from pytest import MonkeyPatch
+from src.clients.veo import VeoClient
 from src.config import Settings
 from src.exceptions import NotConfiguredError, VeoGenerationError, VeoTimeoutError
-from src.services.veo.client import VeoClient
 
 
 def _operation(*, done: bool, uri: str | None = None, error: object | None = None) -> object:
@@ -61,11 +61,9 @@ async def test_generate_submits_request_and_polls(monkeypatch: MonkeyPatch) -> N
     async def fake_sleep(seconds: float) -> None:
         del seconds
 
-    monkeypatch.setattr(
-        "src.services.veo.client.vertexai.init", lambda **kwargs: captured.update(kwargs)
-    )
-    monkeypatch.setattr("src.services.veo.client.Client", FakeClient)
-    monkeypatch.setattr("src.services.veo.client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("src.clients.veo.vertexai.init", lambda **kwargs: captured.update(kwargs))
+    monkeypatch.setattr("src.clients.veo.Client", FakeClient)
+    monkeypatch.setattr("src.clients.veo.asyncio.sleep", fake_sleep)
 
     client = VeoClient(
         settings=Settings(
@@ -101,8 +99,8 @@ async def test_generate_maps_deadline_exceeded(monkeypatch: MonkeyPatch) -> None
             self.models = FakeModels()
             self.operations = SimpleNamespace()
 
-    monkeypatch.setattr("src.services.veo.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.veo.client.Client", FakeClient)
+    monkeypatch.setattr("src.clients.veo.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.veo.Client", FakeClient)
     client = VeoClient(settings=Settings(gcp_project_id="demo", gcs_bucket_name="bucket"))
 
     try:
@@ -127,8 +125,8 @@ async def test_generate_maps_retry_error(monkeypatch: MonkeyPatch) -> None:
             self.models = FakeModels()
             self.operations = SimpleNamespace()
 
-    monkeypatch.setattr("src.services.veo.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.veo.client.Client", FakeClient)
+    monkeypatch.setattr("src.clients.veo.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.veo.Client", FakeClient)
     client = VeoClient(settings=Settings(gcp_project_id="demo", gcs_bucket_name="bucket"))
 
     try:
@@ -151,8 +149,8 @@ async def test_generate_maps_google_api_error(monkeypatch: MonkeyPatch) -> None:
             self.models = FakeModels()
             self.operations = SimpleNamespace()
 
-    monkeypatch.setattr("src.services.veo.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.veo.client.Client", FakeClient)
+    monkeypatch.setattr("src.clients.veo.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.veo.Client", FakeClient)
     client = VeoClient(settings=Settings(gcp_project_id="demo", gcs_bucket_name="bucket"))
 
     try:
@@ -181,7 +179,7 @@ async def test_poll_until_done_returns_gcs_uri(monkeypatch: MonkeyPatch) -> None
     async def fake_sleep(seconds: float) -> None:
         del seconds
 
-    monkeypatch.setattr("src.services.veo.client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("src.clients.veo.asyncio.sleep", fake_sleep)
 
     client = VeoClient(settings=Settings(veo_timeout=10, veo_polling_interval=0))
     result = await client._poll_until_done(FakeClient(), _operation(done=False))
@@ -231,8 +229,8 @@ async def test_poll_until_done_raises_timeout(monkeypatch: MonkeyPatch) -> None:
         calls["count"] += 1
         return 0.0 if calls["count"] == 1 else 1.5
 
-    monkeypatch.setattr("src.services.veo.client.time.monotonic", fake_monotonic)
-    monkeypatch.setattr("src.services.veo.client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("src.clients.veo.time.monotonic", fake_monotonic)
+    monkeypatch.setattr("src.clients.veo.asyncio.sleep", fake_sleep)
 
     client = VeoClient(settings=Settings(veo_timeout=1, veo_polling_interval=0))
 

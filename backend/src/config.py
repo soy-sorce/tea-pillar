@@ -24,16 +24,21 @@ class Settings(BaseSettings):
 
     gemini_model: str = Field(default="gemini-2.5-flash")
     gemini_timeout: int = Field(default=15)
+    gemini_max_output_tokens: int = Field(default=4096)
+    gemini_temperature: float = Field(default=0.7)
 
     veo_model: str = Field(default="veo-3.1-fast-generate-001")
     veo_timeout: int = Field(default=300)
     veo_polling_interval: int = Field(default=5)
+    veo_duration_seconds: int = Field(default=8)
+    veo_generate_audio: bool = Field(default=False)
 
     gcs_bucket_name: str = Field(default="")
     reaction_video_bucket_name: str = Field(default="")
     gcs_signed_url_expiration_hours: int = Field(default=1)
     gcs_signing_service_account_file: str = Field(default="")
     reaction_video_upload_url_expires_seconds: int = Field(default=900)
+    reaction_video_content_type: str = Field(default="video/mp4")
 
     firestore_database_id: str = Field(default="(default)")
 

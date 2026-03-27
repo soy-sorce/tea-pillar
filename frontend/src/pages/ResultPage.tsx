@@ -162,78 +162,114 @@ export function ResultPage(): React.JSX.Element {
     if (resultState === "done" && response) {
         return (
             <div className="mx-auto max-w-2xl space-y-8 px-4 py-8 animate-fadeIn">
-                <VideoPlayer
-                    src={response.video_url}
-                    loop={!isProduction}
-                    onPlay={handleVideoPlay}
-                />
+                {/* 体験モード: 動画 + 生成情報 + リトライのみ */}
+                {!isProduction && (
+                    <>
+                        <VideoPlayer
+                            src={response.video_url}
+                            loop={true}
+                            onPlay={handleVideoPlay}
+                        />
 
-                <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                        <UploadCloud size={16} />
-                        Reaction Status
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-text-secondary">{reactionStatusLabel}</p>
+                        {/* 生成情報カード */}
+                        <div className="rounded-card-lg border border-border bg-surface p-5 shadow-card space-y-2 text-sm text-text-secondary">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">生成完了</p>
+                            <p>テンプレート: <span className="font-semibold text-text-primary">{response.template_name}</span></p>
+                            <p className="text-xs text-text-muted font-mono">state_key: {response.state_key}</p>
+                        </div>
 
-                    {isProduction && (
-                        <div className="mt-5 overflow-hidden rounded-card-lg border border-border bg-surface-alt">
-                            <div className="aspect-[16/10] bg-black/90">
-                                <video
-                                    ref={reactionCameraRef}
-                                    muted
-                                    playsInline
-                                    className="h-full w-full object-cover"
-                                    aria-label="reaction camera preview"
-                                />
+                        <div className="text-center">
+                            <Button
+                                id="btn-retry"
+                                variant="ghost"
+                                size="md"
+                                leftIcon={<RefreshCw size={15} />}
+                                onClick={() => {
+                                    reset();
+                                    void navigate("/");
+                                }}
+                            >
+                                もう一度試す
+                            </Button>
+                        </div>
+                    </>
+                )}
+
+                {/* 本番モード: 動画 + reaction camera + upload status */}
+                {isProduction && (
+                    <>
+                        <VideoPlayer
+                            src={response.video_url}
+                            loop={false}
+                            onPlay={handleVideoPlay}
+                        />
+
+                        <div className="rounded-card-lg border border-border bg-surface p-6 shadow-card">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                <UploadCloud size={16} />
+                                Reaction Status
                             </div>
-                            <div className="grid gap-3 border-t border-border px-4 py-4 sm:grid-cols-3">
-                                <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
-                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                                        <Camera size={14} />
-                                        Camera
-                                    </div>
-                                    <p className="mt-2 font-semibold text-text-primary">
-                                        {isReactionCameraReady ? "準備完了" : "起動中"}
-                                    </p>
+                            <p className="mt-3 text-sm leading-6 text-text-secondary">{reactionStatusLabel}</p>
+
+                            <div className="mt-5 overflow-hidden rounded-card-lg border border-border bg-surface-alt">
+                                <div className="aspect-[16/10] bg-black/90">
+                                    <video
+                                        ref={reactionCameraRef}
+                                        muted
+                                        playsInline
+                                        className="h-full w-full object-cover"
+                                        aria-label="reaction camera preview"
+                                    />
                                 </div>
-                                <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
-                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                                        <Video size={14} />
-                                        Recording
+                                <div className="grid gap-3 border-t border-border px-4 py-4 sm:grid-cols-3">
+                                    <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
+                                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                                            <Camera size={14} />
+                                            Camera
+                                        </div>
+                                        <p className="mt-2 font-semibold text-text-primary">
+                                            {isReactionCameraReady ? "準備完了" : "起動中"}
+                                        </p>
                                     </div>
-                                    <p className="mt-2 font-semibold text-text-primary">
-                                        {isReactionRecording ? "録画中" : "待機中"}
-                                    </p>
-                                </div>
-                                <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
-                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                                        <UploadCloud size={14} />
-                                        Upload
+                                    <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
+                                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                                            <Video size={14} />
+                                            Recording
+                                        </div>
+                                        <p className="mt-2 font-semibold text-text-primary">
+                                            {isReactionRecording ? "録画中" : "待機中"}
+                                        </p>
                                     </div>
-                                    <p className="mt-2 font-semibold text-text-primary">{reactionUploadState}</p>
+                                    <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
+                                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                                            <UploadCloud size={14} />
+                                            Upload
+                                        </div>
+                                        <p className="mt-2 font-semibold text-text-primary">{reactionUploadState}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
 
-                <div className="text-center">
-                    <Button
-                        id="btn-retry"
-                        variant="ghost"
-                        size="md"
-                        leftIcon={<RefreshCw size={15} />}
-                        onClick={() => {
-                            hasStartedReactionFlowRef.current = false;
-                            resetReactionRecording();
-                            stopCamera();
-                            reset();
-                            void navigate("/");
-                        }}
-                    >
-                        もう一度試す
-                    </Button>
-                </div>
+                        <div className="text-center">
+                            <Button
+                                id="btn-retry"
+                                variant="ghost"
+                                size="md"
+                                leftIcon={<RefreshCw size={15} />}
+                                onClick={() => {
+                                    hasStartedReactionFlowRef.current = false;
+                                    resetReactionRecording();
+                                    stopCamera();
+                                    reset();
+                                    void navigate("/");
+                                }}
+                            >
+                                もう一度試す
+                            </Button>
+                        </div>
+                    </>
+                )}
             </div>
         );
     }

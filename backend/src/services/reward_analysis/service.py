@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Self
 
+from src.clients.model_service import CatModelClient
 from src.config import Settings
 from src.exceptions import FirestoreError, RewardAnalysisError
 from src.models.request import RewardAnalysisTaskRequest
+from src.repositories.firestore import FirestoreClient
 from src.services.bandit.thompson import ThompsonBandit
-from src.services.cat_model.client import CatModelClient
-from src.services.firestore.client import FirestoreClient
 
 
 class RewardAnalysisService:
@@ -51,8 +51,6 @@ class RewardAnalysisService:
                 session_id=payload.session_id,
                 reward_event_id=reward_event_id,
             )
-        except FirestoreError:
-            raise
         except Exception as exc:
             try:
                 await self._firestore.mark_session_reward_failed(
@@ -61,4 +59,6 @@ class RewardAnalysisService:
                 )
             except FirestoreError:
                 pass
+            if isinstance(exc, FirestoreError):
+                raise
             raise RewardAnalysisError(detail=str(exc)) from exc

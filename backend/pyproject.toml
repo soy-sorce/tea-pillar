@@ -38,11 +38,13 @@ ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "src/routers/*.py" = ["B008"]
+"src/dependencies.py" = ["B008"]
 "tests/**/*.py" = ["ANN"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
+explicit_package_bases = true
 ignore_missing_imports = false
 disallow_untyped_defs = true
 disallow_any_explicit = false
