@@ -29,28 +29,6 @@ locals {
     environment = var.environment
     managed_by  = "terraform"
   }
-
-  backend_env_vars = {
-    ENVIRONMENT                     = var.environment
-    LOG_LEVEL                       = var.backend_log_level
-    GCP_PROJECT_ID                  = var.project_id
-    GCP_REGION                      = var.region
-    VERTEX_ENDPOINT_ID              = var.vertex_endpoint_resource_name
-    VERTEX_ENDPOINT_LOCATION        = var.vertex_endpoint_location
-    GCS_BUCKET_NAME                 = module.gcs.bucket_name
-    GCS_SIGNED_URL_EXPIRATION_HOURS = tostring(var.gcs_signed_url_expiration_hours)
-    FIRESTORE_DATABASE_ID           = module.firestore.database_id
-    GEMINI_MODEL                    = var.gemini_model
-    GEMINI_TIMEOUT                  = tostring(var.gemini_timeout)
-    VEO_MODEL                       = var.veo_model
-    VEO_TIMEOUT                     = tostring(var.veo_timeout)
-    VEO_POLLING_INTERVAL            = tostring(var.veo_polling_interval)
-    BANDIT_UCB_ALPHA                = tostring(var.bandit_ucb_alpha)
-  }
-
-  frontend_env_vars = {
-    VITE_BACKEND_URL = var.frontend_backend_url_override != "" ? var.frontend_backend_url_override : module.api_gateway.gateway_default_hostname
-  }
 }
 
 module "artifact_registry" {
@@ -80,80 +58,27 @@ module "gcs" {
   labels             = local.common_labels
 }
 
-module "vpc" {
-  source                  = "../../modules/vpc"
-  project_id              = var.project_id
-  region                  = var.region
-  environment             = var.environment
-  network_name            = var.vpc_network_name
-  subnet_name             = var.vpc_subnet_name
-  subnet_cidr             = var.vpc_subnet_cidr
-  connector_name          = var.vpc_connector_name
-  connector_cidr          = var.vpc_connector_cidr
-  connector_min_instances = var.vpc_connector_min_instances
-  connector_max_instances = var.vpc_connector_max_instances
-  connector_machine_type  = var.vpc_connector_machine_type
+module "reaction_video_gcs" {
+  source             = "../../modules/gcs"
+  project_id         = var.project_id
+  region             = var.region
+  bucket_name        = var.reaction_video_bucket_name
+  environment        = var.environment
+  lifecycle_age_days = var.gcs_lifecycle_age_days
+  labels             = local.common_labels
 }
 
 module "iam" {
-  source                   = "../../modules/iam"
-  project_id               = var.project_id
-  region                   = var.region
-  environment              = var.environment
-  backend_service_name     = var.backend_service_name
-  frontend_service_name    = var.frontend_service_name
-  api_gateway_service_name = var.api_gateway_name
-  gcs_bucket_name          = module.gcs.bucket_name
-}
-
-module "vertex_ai" {
-  source                        = "../../modules/vertex_ai"
-  project_id                    = var.project_id
-  region                        = var.region
-  endpoint_resource_name        = var.vertex_endpoint_resource_name
-  endpoint_location             = var.vertex_endpoint_location
-  backend_service_account_email = module.iam.backend_service_account_email
-  enable_vertex_api             = var.enable_vertex_api
-}
-
-module "backend_cloud_run" {
-  source                = "../../modules/cloud_run"
-  project_id            = var.project_id
-  region                = var.region
-  service_name          = var.backend_service_name
-  image_uri             = var.backend_image_uri
-  container_port        = 8080
-  ingress               = var.backend_ingress
-  min_instance_count    = var.backend_min_instances
-  max_instance_count    = var.backend_max_instances
-  timeout_seconds       = var.backend_timeout_seconds
-  cpu                   = var.backend_cpu
-  memory                = var.backend_memory
-  service_account_email = module.iam.backend_service_account_email
-  env_vars              = local.backend_env_vars
-  labels                = local.common_labels
-  allow_unauthenticated = false
-  vpc_connector         = module.vpc.connector_id
-  vpc_egress            = var.backend_vpc_egress
-}
-
-module "frontend_cloud_run" {
-  source                = "../../modules/cloud_run"
-  project_id            = var.project_id
-  region                = var.region
-  service_name          = var.frontend_service_name
-  image_uri             = var.frontend_image_uri
-  container_port        = 8080
-  ingress               = var.frontend_ingress
-  min_instance_count    = var.frontend_min_instances
-  max_instance_count    = var.frontend_max_instances
-  timeout_seconds       = var.frontend_timeout_seconds
-  cpu                   = var.frontend_cpu
-  memory                = var.frontend_memory
-  service_account_email = module.iam.frontend_service_account_email
-  env_vars              = local.frontend_env_vars
-  labels                = local.common_labels
-  allow_unauthenticated = true
+  source                     = "../../modules/iam"
+  project_id                 = var.project_id
+  region                     = var.region
+  environment                = var.environment
+  backend_service_name       = var.backend_service_name
+  frontend_service_name      = var.frontend_service_name
+  model_service_name         = var.model_service_name
+  api_gateway_service_name   = var.api_gateway_name
+  gcs_bucket_name            = module.gcs.bucket_name
+  reaction_video_bucket_name = module.reaction_video_gcs.bucket_name
 }
 
 module "api_gateway" {
@@ -163,7 +88,7 @@ module "api_gateway" {
   api_id                        = var.api_gateway_api_id
   api_config_id                 = var.api_gateway_config_id
   gateway_id                    = var.api_gateway_name
-  backend_url                   = module.backend_cloud_run.service_uri
+  backend_url                   = var.backend_url
   gateway_service_account_email = module.iam.apigateway_service_account_email
   openapi_template_path         = "${path.root}/../../../apigateway/openapi.yaml"
   jwt_issuer                    = var.api_gateway_jwt_issuer
@@ -171,15 +96,74 @@ module "api_gateway" {
   jwt_audience                  = var.api_gateway_jwt_audience
 }
 
-resource "google_cloud_run_v2_service_iam_member" "apigateway_invoke_backend" {
-  project  = var.project_id
-  location = var.region
-  name     = module.backend_cloud_run.service_name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${module.iam.apigateway_service_account_email}"
-
-  depends_on = [
-    module.backend_cloud_run,
-    module.iam,
+module "frontend_trigger" {
+  source       = "../../modules/cloud_build_trigger"
+  project_id   = var.project_id
+  name         = var.frontend_trigger_name
+  description  = "Deploy frontend on main branch push"
+  filename     = "infra/ci/cloud_build/cloudbuild-frontend.yaml"
+  github_owner = var.github_owner
+  github_name  = var.github_repo_name
+  branch_regex = var.trigger_branch_regex
+  included_files = [
+    "frontend/**",
+    "infra/ci/cloud_build/cloudbuild-frontend.yaml",
   ]
+  substitutions = {
+    _REGION           = var.region
+    _REPOSITORY       = var.artifact_registry_repository_id
+    _SERVICE_NAME     = var.frontend_service_name
+    _VITE_BACKEND_URL = var.frontend_backend_url_override != "" ? var.frontend_backend_url_override : "https://${module.api_gateway.gateway_default_hostname}"
+  }
+}
+
+module "backend_trigger" {
+  source       = "../../modules/cloud_build_trigger"
+  project_id   = var.project_id
+  name         = var.backend_trigger_name
+  description  = "Deploy backend on main branch push"
+  filename     = "infra/ci/cloud_build/cloudbuild-backend.yaml"
+  github_owner = var.github_owner
+  github_name  = var.github_repo_name
+  branch_regex = var.trigger_branch_regex
+  included_files = [
+    "backend/**",
+    "model/**",
+    "infra/ci/cloud_build/cloudbuild-backend.yaml",
+    "scripts/deploy_ML/**",
+  ]
+  substitutions = {
+    _REGION                                    = var.region
+    _REPOSITORY                                = var.artifact_registry_repository_id
+    _SERVICE_NAME                              = var.backend_service_name
+    _MODEL_SERVICE_URL                         = var.model_service_url
+    _REACTION_VIDEO_BUCKET_NAME                = module.reaction_video_gcs.bucket_name
+    _REACTION_VIDEO_UPLOAD_URL_EXPIRES_SECONDS = tostring(var.reaction_video_upload_url_expires_seconds)
+  }
+}
+
+module "api_gateway_trigger" {
+  source       = "../../modules/cloud_build_trigger"
+  project_id   = var.project_id
+  name         = var.api_gateway_trigger_name
+  description  = "Deploy API Gateway config on main branch push"
+  filename     = "infra/ci/cloud_build/cloudbuild-apigateway.yaml"
+  github_owner = var.github_owner
+  github_name  = var.github_repo_name
+  branch_regex = var.trigger_branch_regex
+  included_files = [
+    "infra/apigateway/openapi.yaml",
+    "infra/ci/cloud_build/cloudbuild-apigateway.yaml",
+  ]
+  substitutions = {
+    _REGION                  = var.region
+    _API_ID                  = var.api_gateway_api_id
+    _API_CONFIG_ID           = var.api_gateway_config_id
+    _GATEWAY_ID              = var.api_gateway_name
+    _BACKEND_URL             = var.backend_url
+    _JWT_ISSUER              = var.api_gateway_jwt_issuer
+    _JWT_JWKS_URI            = var.api_gateway_jwt_jwks_uri
+    _JWT_AUDIENCE            = var.api_gateway_jwt_audience
+    _GATEWAY_SERVICE_ACCOUNT = module.iam.apigateway_service_account_email
+  }
 }

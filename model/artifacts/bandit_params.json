@@ -1,0 +1,642 @@
+{
+  "unknown_angry_alert_cat__video-1": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-10": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-2": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-3": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-4": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-5": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-6": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-7": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-8": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_alert_cat__video-9": {
+    "state_key": "unknown_angry_alert_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-1": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-10": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-2": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-3": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-4": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-5": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-6": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-7": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-8": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_comfortable_cat__video-9": {
+    "state_key": "unknown_angry_comfortable_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-1": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-10": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-2": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-3": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-4": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-5": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-6": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-7": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-8": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_sleepy_cat__video-9": {
+    "state_key": "unknown_angry_sleepy_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-1": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-10": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-2": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-3": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-4": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-5": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-6": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-7": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-8": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_angry_stressed_cat__video-9": {
+    "state_key": "unknown_angry_stressed_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-1": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-10": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-2": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-3": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-4": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-5": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-6": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-7": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-8": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_alert_cat__video-9": {
+    "state_key": "unknown_sad_alert_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-1": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-10": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-2": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-3": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-4": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-5": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-6": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-7": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-8": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_comfortable_cat__video-9": {
+    "state_key": "unknown_sad_comfortable_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-1": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-10": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-2": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-3": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-4": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-5": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-6": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-7": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-8": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_sleepy_cat__video-9": {
+    "state_key": "unknown_sad_sleepy_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-1": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-1",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-10": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-10",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-2": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-2",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-3": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-3",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-4": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-4",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-5": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-5",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-6": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-6",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-7": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-7",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-8": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-8",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  },
+  "unknown_sad_stressed_cat__video-9": {
+    "state_key": "unknown_sad_stressed_cat",
+    "template_id": "video-9",
+    "alpha": 1.0,
+    "beta": 1.0,
+    "selection_count": 0,
+    "reward_sum": 0.0
+  }
+}

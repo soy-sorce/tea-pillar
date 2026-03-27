@@ -3,8 +3,6 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { GenerationContextProvider } from "@/contexts/GenerationContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TopPage } from "@/pages/TopPage";
-import { ExperiencePage } from "@/pages/ExperiencePage";
-import { ProductionPage } from "@/pages/ProductionPage";
 import { ResultPage } from "@/pages/ResultPage";
 
 const router = createBrowserRouter([
@@ -13,8 +11,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <TopPage /> },
-      { path: "experience", element: <ExperiencePage /> },
-      { path: "production", element: <ProductionPage /> },
       { path: "result", element: <ResultPage /> },
     ],
   },

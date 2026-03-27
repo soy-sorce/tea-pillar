@@ -3,14 +3,12 @@ import { AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface ErrorScreenProps {
-    code: string | null;
     message: string | null;
     onRetry: () => void;
     onBack: () => void;
 }
 
 export function ErrorScreen({
-    code: _code,
     message,
     onRetry,
     onBack,

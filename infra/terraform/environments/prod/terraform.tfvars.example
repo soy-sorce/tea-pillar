@@ -4,18 +4,21 @@ environment                      = "prod"
 
 artifact_registry_repository_id  = "nekkoflix"
 gcs_bucket_name                  = "REPLACE_ME_GCS_BUCKET"
+reaction_video_bucket_name       = "REPLACE_ME_REACTION_VIDEO_BUCKET"
+reaction_video_upload_url_expires_seconds = 900
 firestore_database_id            = "(default)"
 
 frontend_service_name            = "nekkoflix-frontend"
 backend_service_name             = "nekkoflix-backend"
+model_service_name               = "nekkoflix-model"
 api_gateway_name                 = "nekkoflix-api-gateway"
 api_gateway_api_id               = "nekkoflix-api"
 api_gateway_config_id            = "v1"
+backend_url                      = "https://REPLACE_ME_BACKEND_URL"
+model_service_url                = "https://REPLACE_ME_MODEL_SERVICE_URL"
 
-frontend_image_uri               = "REPLACE_ME_FRONTEND_IMAGE_URI"
-backend_image_uri                = "REPLACE_ME_BACKEND_IMAGE_URI"
-vertex_endpoint_resource_name    = "projects/94553428765/locations/asia-northeast1/endpoints/9155661911793074176"
-vertex_endpoint_location         = "asia-northeast1"
+github_owner                     = "REPLACE_ME_GITHUB_OWNER"
+github_repo_name                 = "tea-pillar"
 
 api_gateway_jwt_issuer           = "REPLACE_ME_JWT_ISSUER"
 api_gateway_jwt_jwks_uri         = "REPLACE_ME_JWKS_URI"

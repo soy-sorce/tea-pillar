@@ -15,11 +15,21 @@ class GenerateResponse(BaseModel):
     template_name: str = Field(...)
 
 
-class FeedbackResponse(BaseModel):
-    """POST /feedback response."""
+class ReactionUploadResponse(BaseModel):
+    """POST /sessions/{session_id}/reaction response."""
 
-    reward: float = Field(...)
-    updated_template_id: str = Field(...)
+    session_id: str = Field(...)
+    status: Literal["accepted"] = "accepted"
+    reaction_video_gcs_uri: str = Field(...)
+
+
+class ReactionUploadUrlResponse(BaseModel):
+    """POST /sessions/{session_id}/reaction-upload-url response."""
+
+    session_id: str = Field(...)
+    upload_url: str = Field(...)
+    reaction_video_gcs_uri: str = Field(...)
+    expires_in_seconds: int = Field(...)
 
 
 class HealthResponse(BaseModel):

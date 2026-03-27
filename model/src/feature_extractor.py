@@ -17,11 +17,11 @@ import base64
 import io
 import math
 from collections.abc import Callable, Mapping
+from pathlib import Path
 from typing import Any, Final, Self, TypedDict
 
 import numpy as np
 from google.cloud.storage import Client as StorageClient
-
 from src.schemas import PredictionRequest
 
 EMOTION_MODEL_ID: Final[str] = "semihdervis/cat-emotion-classifier"
@@ -72,6 +72,22 @@ class FeatureExtractor:
     ) -> tuple[dict[str, float], dict[str, str | None]]:
         """Extract features and auxiliary labels from endpoint request."""
         image = _load_request_image(request)
+        return self.extract_image(image=image)
+
+    def extract_image_path(
+        self: Self,
+        image_path: str | Path,
+    ) -> tuple[dict[str, float], dict[str, str | None]]:
+        """Extract features directly from a local image file."""
+        (_, _, _, _, _, _, _, _, pil_image) = _import_runtime_dependencies()
+        image = pil_image.open(Path(image_path)).convert("RGB")
+        return self.extract_image(image=image)
+
+    def extract_image(
+        self: Self,
+        image: Any,
+    ) -> tuple[dict[str, float], dict[str, str | None]]:
+        """Extract features and auxiliary labels from a PIL-like image."""
         emotion_scores = self._runtime.extract_emotion_scores(image)
         clip_scores = self._runtime.extract_clip_scores(image)
         pose_features = self._runtime.extract_pose_features(image)

@@ -16,46 +16,32 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    gcp_project_id: str = Field(
-        default="",
-        description="Set when the GCP project is decided.",
-    )
+    gcp_project_id: str = Field(default="")
     gcp_region: str = Field(default="asia-northeast1")
 
-    vertex_endpoint_id: str = Field(
-        default="",
-        description="Set after the Vertex AI Custom Endpoint is deployed.",
-    )
-    vertex_endpoint_location: str = Field(default="asia-northeast1")
-    vertex_prediction_timeout: int = Field(default=30)
+    model_service_url: str = Field(default="")
+    model_service_timeout_seconds: int = Field(default=30)
 
     gemini_model: str = Field(default="gemini-2.5-flash")
     gemini_timeout: int = Field(default=15)
 
-    veo_model: str = Field(default="veo-3.1-fast")
+    veo_model: str = Field(default="veo-3.1-fast-generate-001")
     veo_timeout: int = Field(default=300)
     veo_polling_interval: int = Field(default=5)
 
-    gcs_bucket_name: str = Field(
-        default="",
-        description="Set after the Veo output bucket is provisioned.",
-    )
-    model_input_bucket_name: str = Field(
-        default="video-gen4cat-model-inputs-94553428765",
-        description="Temporary GCS bucket for model input images.",
-    )
+    gcs_bucket_name: str = Field(default="")
+    reaction_video_bucket_name: str = Field(default="")
     gcs_signed_url_expiration_hours: int = Field(default=1)
+    reaction_video_upload_url_expires_seconds: int = Field(default=900)
 
     firestore_database_id: str = Field(default="(default)")
-    bandit_ucb_alpha: float = Field(default=1.0)
+
+    thompson_default_alpha: float = Field(default=1.0)
+    thompson_default_beta: float = Field(default=1.0)
+    reward_success_threshold: float = Field(default=1.0)
 
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")
-
-    default_candidate_video_ids: list[str] = Field(
-        default_factory=lambda: [f"video-{index}" for index in range(1, 11)],
-        description="v1 fixed candidate set from fixed_train_data/manifest.csv.",
-    )
 
 
 @lru_cache

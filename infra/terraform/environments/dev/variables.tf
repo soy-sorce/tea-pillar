@@ -21,6 +21,15 @@ variable "gcs_bucket_name" {
   type = string
 }
 
+variable "reaction_video_bucket_name" {
+  type = string
+}
+
+variable "reaction_video_upload_url_expires_seconds" {
+  type    = number
+  default = 900
+}
+
 variable "gcs_lifecycle_age_days" {
   type    = number
   default = 1
@@ -44,6 +53,10 @@ variable "backend_service_name" {
   type = string
 }
 
+variable "model_service_name" {
+  type = string
+}
+
 variable "api_gateway_name" {
   type = string
 }
@@ -56,26 +69,12 @@ variable "api_gateway_config_id" {
   type = string
 }
 
-variable "frontend_image_uri" {
+variable "backend_url" {
   type = string
 }
 
-variable "backend_image_uri" {
+variable "model_service_url" {
   type = string
-}
-
-variable "vertex_endpoint_resource_name" {
-  type = string
-}
-
-variable "vertex_endpoint_location" {
-  type    = string
-  default = "asia-northeast1"
-}
-
-variable "enable_vertex_api" {
-  type    = bool
-  default = true
 }
 
 variable "frontend_backend_url_override" {
@@ -83,144 +82,32 @@ variable "frontend_backend_url_override" {
   default = ""
 }
 
-variable "frontend_min_instances" {
-  type    = number
-  default = 0
+variable "github_owner" {
+  type = string
 }
 
-variable "frontend_max_instances" {
-  type    = number
-  default = 3
+variable "github_repo_name" {
+  type = string
 }
 
-variable "frontend_timeout_seconds" {
-  type    = number
-  default = 60
-}
-
-variable "frontend_cpu" {
+variable "trigger_branch_regex" {
   type    = string
-  default = "1"
+  default = "^main$"
 }
 
-variable "frontend_memory" {
+variable "frontend_trigger_name" {
   type    = string
-  default = "512Mi"
+  default = "nekkoflix-frontend-trigger-dev"
 }
 
-variable "frontend_ingress" {
+variable "backend_trigger_name" {
   type    = string
-  default = "INGRESS_TRAFFIC_ALL"
+  default = "nekkoflix-backend-trigger-dev"
 }
 
-variable "backend_min_instances" {
-  type    = number
-  default = 1
-}
-
-variable "backend_max_instances" {
-  type    = number
-  default = 5
-}
-
-variable "backend_timeout_seconds" {
-  type    = number
-  default = 360
-}
-
-variable "backend_cpu" {
+variable "api_gateway_trigger_name" {
   type    = string
-  default = "1"
-}
-
-variable "backend_memory" {
-  type    = string
-  default = "1Gi"
-}
-
-variable "backend_ingress" {
-  type    = string
-  default = "INGRESS_TRAFFIC_INTERNAL_ONLY"
-}
-
-variable "backend_vpc_egress" {
-  type    = string
-  default = "PRIVATE_RANGES_ONLY"
-}
-
-variable "backend_log_level" {
-  type    = string
-  default = "INFO"
-}
-
-variable "gemini_model" {
-  type    = string
-  default = "gemini-1.5-flash"
-}
-
-variable "gemini_timeout" {
-  type    = number
-  default = 15
-}
-
-variable "veo_model" {
-  type    = string
-  default = "veo-3.1-fast"
-}
-
-variable "veo_timeout" {
-  type    = number
-  default = 300
-}
-
-variable "veo_polling_interval" {
-  type    = number
-  default = 5
-}
-
-variable "bandit_ucb_alpha" {
-  type    = number
-  default = 1.0
-}
-
-variable "vpc_network_name" {
-  type    = string
-  default = "nekkoflix-vpc-dev"
-}
-
-variable "vpc_subnet_name" {
-  type    = string
-  default = "nekkoflix-backend-subnet-dev"
-}
-
-variable "vpc_subnet_cidr" {
-  type    = string
-  default = "10.0.0.0/24"
-}
-
-variable "vpc_connector_name" {
-  type    = string
-  default = "nkfx-vpcconn-dev"
-}
-
-variable "vpc_connector_cidr" {
-  type    = string
-  default = "10.8.0.0/28"
-}
-
-variable "vpc_connector_min_instances" {
-  type    = number
-  default = 2
-}
-
-variable "vpc_connector_max_instances" {
-  type    = number
-  default = 3
-}
-
-variable "vpc_connector_machine_type" {
-  type    = string
-  default = "e2-micro"
+  default = "nekkoflix-apigateway-trigger-dev"
 }
 
 variable "api_gateway_jwt_issuer" {

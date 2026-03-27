@@ -1,0 +1,35 @@
+{
+  "feature_names": [
+    "clip_alert_cat",
+    "clip_attentive_cat",
+    "clip_comfortable_cat",
+    "clip_curious_cat",
+    "clip_playful_cat",
+    "clip_relaxed_cat",
+    "clip_sleepy_cat",
+    "clip_stressed_cat",
+    "clip_top_label",
+    "emotion_angry",
+    "emotion_happy",
+    "emotion_label",
+    "emotion_sad",
+    "pose_area_ratio",
+    "pose_centroid_x",
+    "pose_centroid_y",
+    "pose_compactness",
+    "pose_mean_confidence",
+    "pose_pc1_variance",
+    "pose_pc2_variance",
+    "pose_pc_ratio",
+    "pose_principal_angle_cos",
+    "pose_principal_angle_sin",
+    "pose_x_span",
+    "pose_y_span"
+  ],
+  "aux_label_names": [
+    "emotion_label",
+    "clip_top_label",
+    "meow_label"
+  ],
+  "state_key_format": "{meow_label or unknown}_{emotion_label}_{clip_top_label}"
+}

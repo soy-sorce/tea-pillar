@@ -1,7 +1,8 @@
 """State key generation."""
 
-import structlog
+from typing import Self
 
+import structlog
 from src.models.internal import CatFeatures
 
 logger = structlog.get_logger(__name__)
@@ -10,7 +11,7 @@ logger = structlog.get_logger(__name__)
 class StateKeyBuilder:
     """Build the state key from endpoint auxiliary labels."""
 
-    def build(self, features: CatFeatures) -> str:
+    def build(self: Self, features: CatFeatures) -> str:
         """Build the v1 state key.
 
         Format:

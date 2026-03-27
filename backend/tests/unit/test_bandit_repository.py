@@ -5,20 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Self
 
-from src.models.firestore import BanditTableDocument, TemplateDocument
+from src.models.firestore import BanditStateDocument, TemplateDocument
 from src.services.bandit.repository import BanditRepository
 
 
 @dataclass
 class FakeFirestoreClient:
-    entries: dict[str, BanditTableDocument]
+    entries: dict[str, BanditStateDocument]
     templates: list[TemplateDocument]
     updated: tuple[str, str, float] | None = None
 
-    async def get_bandit_entries_by_state_key(
+    async def get_bandit_states_by_state_key(
         self: Self,
         state_key: str,
-    ) -> dict[str, BanditTableDocument]:
+    ) -> dict[str, BanditStateDocument]:
         return {
             template_id: document
             for template_id, document in self.entries.items()
@@ -28,8 +28,9 @@ class FakeFirestoreClient:
     async def get_active_templates(self: Self) -> list[TemplateDocument]:
         return self.templates
 
-    async def update_bandit_entry(
+    async def update_bandit_state(
         self: Self,
+        *,
         template_id: str,
         state_key: str,
         reward: float,
@@ -40,12 +41,13 @@ class FakeFirestoreClient:
 async def test_repository_delegates_reads_and_writes() -> None:
     firestore = FakeFirestoreClient(
         entries={
-            "video-1": BanditTableDocument(
+            "video-1": BanditStateDocument(
                 template_id="video-1",
                 state_key="unknown_happy_curious_cat",
+                alpha=2.0,
+                beta=1.0,
                 selection_count=2,
-                cumulative_reward=1.0,
-                mean_reward=0.5,
+                reward_sum=1.0,
             ),
         },
         templates=[

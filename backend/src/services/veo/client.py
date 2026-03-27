@@ -1,15 +1,13 @@
 """Veo video generation client."""
 
 import asyncio
-import json
 import time
-from typing import Any, Self, cast
+from typing import Self
 
 import structlog
 import vertexai
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
-from google.cloud import aiplatform_v1
-
+from google.genai import Client, types
 from src.config import Settings
 from src.exceptions import NotConfiguredError, VeoGenerationError, VeoTimeoutError
 
@@ -34,11 +32,10 @@ class VeoClient:
             project=self._settings.gcp_project_id,
             location=self._settings.gcp_region,
         )
-        client = aiplatform_v1.PredictionServiceAsyncClient()
-        endpoint = (
-            f"projects/{self._settings.gcp_project_id}"
-            f"/locations/{self._settings.gcp_region}"
-            f"/publishers/google/models/{self._settings.veo_model}"
+        client = Client(
+            vertexai=True,
+            project=self._settings.gcp_project_id,
+            location="global",
         )
         logger.info(
             "veo_generation_request_start",
@@ -50,38 +47,37 @@ class VeoClient:
         )
         logger.debug(
             "veo_generation_request_detail",
-            endpoint=endpoint,
+            veo_sdk_location="global",
             output_gcs_uri=f"gs://{self._settings.gcs_bucket_name}/",
             prompt_preview=prompt[:500],
         )
 
         try:
-            operation = await client.predict(
-                endpoint=endpoint,
-                instances=[{"prompt": prompt}],
-                parameters={
-                    "generate_audio": False,
-                    "output_gcs_uri": f"gs://{self._settings.gcs_bucket_name}/",
-                },
+            operation = await asyncio.to_thread(
+                client.models.generate_videos,
+                model=self._settings.veo_model,
+                prompt=prompt,
+                config=types.GenerateVideosConfig(
+                    generate_audio=False,
+                    output_gcs_uri=f"gs://{self._settings.gcs_bucket_name}/",
+                    duration_seconds=8,
+                ),
             )
         except DeadlineExceeded as exc:
             logger.exception(
                 "veo_predict_deadline_exceeded",
-                endpoint=endpoint,
                 model=self._settings.veo_model,
             )
             raise VeoTimeoutError(detail=str(exc)) from exc
         except RetryError as exc:
             logger.exception(
                 "veo_predict_retry_timeout",
-                endpoint=endpoint,
                 model=self._settings.veo_model,
             )
             raise VeoTimeoutError(detail=str(exc)) from exc
         except GoogleAPICallError as exc:
             logger.exception(
                 "veo_predict_google_api_error",
-                endpoint=endpoint,
                 model=self._settings.veo_model,
                 error_type=type(exc).__name__,
             )
@@ -91,14 +87,16 @@ class VeoClient:
             "veo_generation_started",
             model=self._settings.veo_model,
             prompt_length=len(prompt),
-            operation_name=operation.operation.name,
+            operation_name=operation.name,
         )
-        return await self._poll_until_done(operation_name=operation.operation.name)
+        return await self._poll_until_done(client=client, operation=operation)
 
-    async def _poll_until_done(self: Self, operation_name: str) -> str:
+    async def _poll_until_done(
+        self: Self,
+        client: Client,
+        operation: types.GenerateVideosOperation,
+    ) -> str:
         """Poll the long-running operation."""
-        operations_module = cast(Any, aiplatform_v1)
-        operations_client = operations_module.OperationsAsyncClient()
         started_at = time.monotonic()
 
         while True:
@@ -108,20 +106,22 @@ class VeoClient:
                     detail=f"timed out after {self._settings.veo_timeout}s",
                 )
 
-            operation = await operations_client.get_operation(name=operation_name)
+            operation = await asyncio.to_thread(client.operations.get, operation)
             if operation.done:
-                if operation.error.code != 0:
+                if getattr(operation, "error", None):
                     logger.error(
                         "veo_generation_operation_failed",
-                        operation_name=operation_name,
-                        error_code=operation.error.code,
-                        error_message=operation.error.message,
+                        operation_name=operation.name,
+                        error_code=getattr(operation.error, "code", "unknown"),
+                        error_message=getattr(operation.error, "message", "unknown"),
                     )
-                    raise VeoGenerationError(detail=operation.error.message)
-                gcs_uri = self._extract_gcs_uri(operation.response.value)
+                    raise VeoGenerationError(
+                        detail=getattr(operation.error, "message", "unknown"),
+                    )
+                gcs_uri = self._extract_gcs_uri(operation)
                 logger.info(
                     "veo_generation_completed",
-                    operation_name=operation_name,
+                    operation_name=operation.name,
                     elapsed_seconds=int(elapsed),
                     gcs_uri=gcs_uri,
                 )
@@ -129,43 +129,22 @@ class VeoClient:
 
             logger.debug(
                 "veo_polling",
-                operation_name=operation_name,
+                operation_name=operation.name,
                 elapsed_seconds=int(elapsed),
             )
             await asyncio.sleep(self._settings.veo_polling_interval)
 
-    def _extract_gcs_uri(self: Self, raw_response: bytes) -> str:
-        """Extract the output URI from a conservative set of response formats."""
-        decoded = raw_response.decode() if isinstance(raw_response, bytes) else str(raw_response)
-        logger.debug(
-            "veo_extract_gcs_uri_raw_response",
-            raw_response_preview=decoded[:1000],
-        )
-        try:
-            payload = cast(dict[str, object], json.loads(decoded))
-        except json.JSONDecodeError as exc:
-            if decoded.startswith("gs://"):
-                return decoded
-            raise VeoGenerationError(
-                message="Veo の出力形式を解釈できませんでした",
-                detail=decoded,
-            ) from exc
-
-        candidate_keys = ("gcs_uri", "output_gcs_uri", "uri")
-        for key in candidate_keys:
-            value = payload.get(key)
-            if isinstance(value, str) and value.startswith("gs://"):
-                return value
-
-        artifacts = payload.get("artifacts")
-        if isinstance(artifacts, list):
-            for artifact in artifacts:
-                if isinstance(artifact, dict):
-                    uri = artifact.get("gcs_uri") or artifact.get("uri")
-                    if isinstance(uri, str) and uri.startswith("gs://"):
-                        return uri
+    def _extract_gcs_uri(self: Self, operation: types.GenerateVideosOperation) -> str:
+        """Extract the output URI from the completed SDK operation."""
+        response = operation.result or operation.response
+        generated_videos = response.generated_videos if response is not None else None
+        if generated_videos:
+            for generated_video in generated_videos:
+                video = generated_video.video
+                if video is not None and video.uri and video.uri.startswith("gs://"):
+                    return video.uri
 
         raise VeoGenerationError(
             message="Veo の出力形式を解釈できませんでした",
-            detail=decoded,
+            detail=str(operation),
         )
