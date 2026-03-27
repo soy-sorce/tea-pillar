@@ -80,6 +80,7 @@ export function ExperiencePage(): React.JSX.Element {
         videoRef,
         getStream,
         onTrigger: stableOnTrigger,
+        warmupMs: 1000,
     });
 
     // ── カメラ起動（step 0 マウント時に一度だけ） ─
