@@ -34,7 +34,7 @@ export function LandingPage(): React.JSX.Element {
                         nekko<span className="text-gradient">flix</span>
                     </h1>
                     <p className="mx-auto mt-5 max-w-xl text-lg font-semibold leading-relaxed text-text-secondary sm:text-2xl">
-                        ペットもAIの進化のループに入る未来を、いま体験する
+                        Pets in the Loopを先立って体験する。
                     </p>
                 </div>
 
@@ -46,7 +46,7 @@ export function LandingPage(): React.JSX.Element {
                                 What is Pets in the Loop?
                             </p>
                             <h2 className="mt-3 text-xl font-bold tracking-tight text-text-primary sm:text-2xl">
-                                ペットをAI改善の「参加者」として迎える
+                                Our Vision
                             </h2>
                             <div className="mt-4 space-y-3 text-sm leading-7 text-text-secondary sm:text-[15px]">
                                 <p>
