@@ -75,6 +75,7 @@ export function ProductionPage(): React.JSX.Element {
         videoRef,
         getStream,
         onTrigger: stableOnTrigger,
+        warmupMs: 1000,
     });
 
     // ── step 1 でカメラ + 検知を自動起動 ──────────

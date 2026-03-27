@@ -167,9 +167,7 @@ export function LandingPage(): React.JSX.Element {
                 </section>
 
                 <p className="animate-fadeIn text-center text-xs text-text-muted">
-                    Powered by <span className="font-semibold text-text-secondary">Veo3</span> ×{" "}
-                    <span className="font-semibold text-text-secondary">Gemini</span> ×{" "}
-                    <span className="font-semibold text-text-secondary">Vertex AI</span>
+                    Powered by <span className="font-semibold text-text-secondary">Google Cloud</span>
                 </p>
             </div>
         </div>

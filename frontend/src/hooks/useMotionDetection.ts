@@ -12,6 +12,8 @@ interface UseMotionDetectionOptions {
     scoreThreshold?: number;
     consecutiveFrames?: number;
     cooldownMs?: number;
+    /** カメラ起動直後の誤検知を防ぐウォームアップ期間 (ms)。デフォルト 0。 */
+    warmupMs?: number;
 }
 
 interface MotionPayload {
@@ -31,10 +33,11 @@ export function useMotionDetection({
     videoRef,
     getStream,
     onTrigger,
-    pixelDiffThreshold = 25,
-    scoreThreshold = 20,
+    pixelDiffThreshold = 30,
+    scoreThreshold = 40,
     consecutiveFrames = 2,
     cooldownMs = 10_000,
+    warmupMs = 0,
 }: UseMotionDetectionOptions): {
     status: MotionStatus;
     motionScore: number;
@@ -44,6 +47,7 @@ export function useMotionDetection({
     const engineRef = useRef<DiffCamEngineLike | null>(null);
     const consecutiveHitsRef = useRef(0);
     const cooldownUntilRef = useRef(0);
+    const warmupUntilRef = useRef(0);
     const [status, setStatus] = useState<MotionStatus>("idle");
     const [motionScore, setMotionScore] = useState(0);
 
@@ -63,6 +67,7 @@ export function useMotionDetection({
 
         engineRef.current?.stop();
         consecutiveHitsRef.current = 0;
+        warmupUntilRef.current = Date.now() + warmupMs;
 
         const engine = DiffCamEngine as unknown as DiffCamEngineLike;
         engine.init({
@@ -79,6 +84,12 @@ export function useMotionDetection({
                 const now = Date.now();
                 const score = payload.score ?? 0;
                 setMotionScore(score);
+
+                // ウォームアップ期間中は onTrigger を呼ばない
+                if (now < warmupUntilRef.current) {
+                    setStatus("watching");
+                    return;
+                }
 
                 if (now < cooldownUntilRef.current) {
                     setStatus("cooldown");
@@ -113,6 +124,7 @@ export function useMotionDetection({
     }, [
         consecutiveFrames,
         cooldownMs,
+        warmupMs,
         onTrigger,
         pixelDiffThreshold,
         scoreThreshold,
