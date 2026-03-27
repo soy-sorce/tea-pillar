@@ -15,11 +15,15 @@ export function AppLayout(): React.JSX.Element {
                         to="/"
                         className="flex items-center gap-2 text-lg font-bold text-text-primary hover:text-accent transition-colors"
                     >
-                        <span className="text-2xl">🐱</span>
+                        <img
+                            src="/favicorn.svg"
+                            alt="nekkoflix"
+                            className="h-8 w-8 rounded-lg object-contain"
+                        />
                         <span>nekkoflix</span>
                     </Link>
                     <p className="hidden sm:block text-xs text-text-muted">
-                        Powered by Veo3 × Gemini
+                        Powered by Google Cloud
                     </p>
                 </div>
             </header>
