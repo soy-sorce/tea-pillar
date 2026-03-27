@@ -14,10 +14,6 @@ from src.exceptions import NotConfiguredError
 
 logger = structlog.get_logger(__name__)
 
-_LOCAL_SIGNING_CREDENTIALS_PATH = Path(
-    "/home/shouh/team_project/GCP_hackathon_2026/.gcp_secret_key/gcp-hackathon-2026-031ad44f0516.json"
-)
-
 
 class SignedUrlGenerator:
     """Generate signed URLs for generated videos."""
@@ -60,13 +56,14 @@ class SignedUrlGenerator:
 
     def _build_storage_client(self: Self) -> StorageClient:
         """Use a local service account key for signing during development."""
-        if self._is_local_signing_mode():
+        local_credentials_path = self._get_local_signing_credentials_path()
+        if local_credentials_path is not None:
             logger.info(
                 "signed_url_using_local_service_account",
-                credentials_path=str(_LOCAL_SIGNING_CREDENTIALS_PATH),
+                credentials_path=str(local_credentials_path),
             )
             credentials = service_account.Credentials.from_service_account_file(
-                str(_LOCAL_SIGNING_CREDENTIALS_PATH)
+                str(local_credentials_path)
             )  # type: ignore[no-untyped-call]
             return StorageClient(
                 project=self._settings.gcp_project_id,
@@ -76,9 +73,22 @@ class SignedUrlGenerator:
         return StorageClient(project=self._settings.gcp_project_id)
 
     def _is_local_signing_mode(self: Self) -> bool:
-        return (
-            self._settings.environment == "development" and _LOCAL_SIGNING_CREDENTIALS_PATH.exists()
-        )
+        return self._get_local_signing_credentials_path() is not None
+
+    def _get_local_signing_credentials_path(self: Self) -> Path | None:
+        configured_path = self._settings.gcs_signing_service_account_file.strip()
+        if self._settings.environment != "development" or not configured_path:
+            return None
+
+        credentials_path = Path(configured_path)
+        if not credentials_path.exists():
+            logger.warning(
+                "signed_url_local_service_account_missing",
+                credentials_path=str(credentials_path),
+            )
+            return None
+
+        return credentials_path
 
     def _resolve_runtime_signing_identity(self: Self) -> tuple[str, str]:
         credentials, _ = google.auth.default()
