@@ -6,10 +6,10 @@ from collections.abc import Awaitable
 
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
 from pytest import MonkeyPatch
+from src.clients.gemini import GeminiClient
 from src.config import Settings
 from src.exceptions import GeminiError, NotConfiguredError
 from src.models.internal import CatFeatures
-from src.services.gemini.client import GeminiClient
 
 
 def _features() -> CatFeatures:
@@ -51,9 +51,9 @@ async def test_generate_prompt_calls_model_and_returns_stripped_text(
             return type("Response", (), {"text": " final prompt \n"})()
 
     monkeypatch.setattr(
-        "src.services.gemini.client.vertexai.init", lambda **kwargs: captured.update(kwargs)
+        "src.clients.gemini.vertexai.init", lambda **kwargs: captured.update(kwargs)
     )
-    monkeypatch.setattr("src.services.gemini.client.GenerativeModel", FakeModel)
+    monkeypatch.setattr("src.clients.gemini.GenerativeModel", FakeModel)
 
     client = GeminiClient(
         settings=Settings(gcp_project_id="demo-project", gemini_model="gemini-test")
@@ -65,7 +65,7 @@ async def test_generate_prompt_calls_model_and_returns_stripped_text(
     assert captured["location"] == "asia-northeast1"
     assert captured["model_name"] == "gemini-test"
     assert isinstance(captured["prompt"], str)
-    assert captured["generation_config"] == {"max_output_tokens": 512, "temperature": 0.7}
+    assert captured["generation_config"] == {"max_output_tokens": 4096, "temperature": 0.7}
 
 
 async def test_generate_prompt_maps_timeout_error(monkeypatch: MonkeyPatch) -> None:
@@ -85,9 +85,9 @@ async def test_generate_prompt_maps_timeout_error(monkeypatch: MonkeyPatch) -> N
         del timeout
         return await awaitable
 
-    monkeypatch.setattr("src.services.gemini.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.gemini.client.GenerativeModel", FakeModel)
-    monkeypatch.setattr("src.services.gemini.client.asyncio.wait_for", fake_wait_for)
+    monkeypatch.setattr("src.clients.gemini.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.gemini.GenerativeModel", FakeModel)
+    monkeypatch.setattr("src.clients.gemini.asyncio.wait_for", fake_wait_for)
 
     client = GeminiClient(settings=Settings(gcp_project_id="demo"))
 
@@ -113,8 +113,8 @@ async def test_generate_prompt_maps_deadline_exceeded(monkeypatch: MonkeyPatch) 
             del prompt, generation_config
             raise DeadlineExceeded("timed out")
 
-    monkeypatch.setattr("src.services.gemini.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.gemini.client.GenerativeModel", FakeModel)
+    monkeypatch.setattr("src.clients.gemini.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.gemini.GenerativeModel", FakeModel)
 
     client = GeminiClient(settings=Settings(gcp_project_id="demo"))
 
@@ -141,8 +141,8 @@ async def test_generate_prompt_maps_retry_error(monkeypatch: MonkeyPatch) -> Non
             del prompt, generation_config
             raise retry_error
 
-    monkeypatch.setattr("src.services.gemini.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.gemini.client.GenerativeModel", FakeModel)
+    monkeypatch.setattr("src.clients.gemini.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.gemini.GenerativeModel", FakeModel)
 
     client = GeminiClient(settings=Settings(gcp_project_id="demo"))
 
@@ -167,8 +167,8 @@ async def test_generate_prompt_maps_google_api_error(monkeypatch: MonkeyPatch) -
             del prompt, generation_config
             raise GoogleAPICallError("boom")
 
-    monkeypatch.setattr("src.services.gemini.client.vertexai.init", lambda **kwargs: None)
-    monkeypatch.setattr("src.services.gemini.client.GenerativeModel", FakeModel)
+    monkeypatch.setattr("src.clients.gemini.vertexai.init", lambda **kwargs: None)
+    monkeypatch.setattr("src.clients.gemini.GenerativeModel", FakeModel)
 
     client = GeminiClient(settings=Settings(gcp_project_id="demo"))
 

@@ -1,7 +1,8 @@
 """Routes for /generate."""
 
 from fastapi import APIRouter, Depends, Response, status
-from src.config import Settings, get_settings
+
+from src.dependencies import get_generate_orchestrator
 from src.models.request import GenerateRequest
 from src.models.response import ErrorResponse, GenerateResponse
 from src.services.orchestrator import GenerateOrchestrator
@@ -26,7 +27,6 @@ async def generate_options() -> Response:
 )
 async def generate(
     request: GenerateRequest,
-    settings: Settings = Depends(get_settings),
+    orchestrator: GenerateOrchestrator = Depends(get_generate_orchestrator),
 ) -> GenerateResponse:
-    orchestrator = GenerateOrchestrator(settings=settings)
     return await orchestrator.execute(request=request)

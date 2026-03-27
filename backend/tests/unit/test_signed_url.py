@@ -6,9 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from pytest import MonkeyPatch
+from src.clients.storage_signer import SignedUrlGenerator
 from src.config import Settings
 from src.exceptions import NotConfiguredError
-from src.services.veo.signed_url import SignedUrlGenerator
 
 
 def test_generate_raises_when_project_is_missing() -> None:
@@ -56,11 +56,11 @@ def test_generate_builds_signed_url(monkeypatch: MonkeyPatch) -> None:
         refresh=lambda request: None,
     )
     monkeypatch.setattr(
-        "src.services.veo.signed_url.google.auth.default",
-        lambda: (fake_credentials, "demo-project"),
+        "src.clients.storage_signer.google.auth.default",
+        lambda *args, **kwargs: (fake_credentials, "demo-project"),
     )
     monkeypatch.setattr(
-        "src.services.veo.signed_url.StorageClient",
+        "src.clients.storage_signer.StorageClient",
         FakeStorageClient,
     )
     generator = SignedUrlGenerator(
@@ -113,11 +113,11 @@ def test_generate_uses_local_service_account_in_development(monkeypatch: MonkeyP
         return fake_credentials
 
     monkeypatch.setattr(
-        "src.services.veo.signed_url.service_account.Credentials.from_service_account_file",
+        "src.clients.storage_signer.service_account.Credentials.from_service_account_file",
         fake_from_service_account_file,
     )
-    monkeypatch.setattr("src.services.veo.signed_url.StorageClient", FakeStorageClient)
-    monkeypatch.setattr("src.services.veo.signed_url.Path.exists", lambda self: True)
+    monkeypatch.setattr("src.clients.storage_signer.StorageClient", FakeStorageClient)
+    monkeypatch.setattr("src.clients.storage_signer.Path.exists", lambda self: True)
 
     generator = SignedUrlGenerator(
         settings=Settings(
@@ -145,9 +145,29 @@ def test_generate_raises_when_runtime_credentials_lack_service_account_email(
         refresh=lambda request: None,
     )
     monkeypatch.setattr(
-        "src.services.veo.signed_url.google.auth.default",
-        lambda: (fake_credentials, "demo-project"),
+        "src.clients.storage_signer.google.auth.default",
+        lambda *args, **kwargs: (fake_credentials, "demo-project"),
     )
+
+    class FakeBlob:
+        def generate_signed_url(self, **kwargs: object) -> str:
+            del kwargs
+            return "https://signed.example/video.mp4"
+
+    class FakeBucket:
+        def blob(self, blob_name: str) -> FakeBlob:
+            del blob_name
+            return FakeBlob()
+
+    class FakeStorageClient:
+        def __init__(self, project: str, credentials: object | None = None) -> None:
+            del project, credentials
+
+        def bucket(self, bucket_name: str) -> FakeBucket:
+            del bucket_name
+            return FakeBucket()
+
+    monkeypatch.setattr("src.clients.storage_signer.StorageClient", FakeStorageClient)
 
     generator = SignedUrlGenerator(
         settings=Settings(

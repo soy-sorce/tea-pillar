@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 from src.app import create_app
 from src.config import Settings, get_settings
+from src.dependencies import get_generate_orchestrator
 from src.exceptions import FirestoreError
 
 
@@ -94,21 +95,13 @@ def test_custom_application_error_is_serialized() -> None:
     app.dependency_overrides[get_settings] = lambda: Settings()
 
     class FailingGenerateOrchestrator:
-        def __init__(self, settings: Settings) -> None:
-            del settings
-
         async def execute(self, request: object) -> object:
             del request
             raise FirestoreError(detail="boom")
 
-    monkeypatch = MonkeyPatch()
-    monkeypatch.setattr("src.routers.generate.GenerateOrchestrator", FailingGenerateOrchestrator)
-
-    try:
-        client = TestClient(app, raise_server_exceptions=False)
-        response = client.post("/generate", json={"mode": "experience", "image_base64": "encoded"})
-    finally:
-        monkeypatch.undo()
+    app.dependency_overrides[get_generate_orchestrator] = lambda: FailingGenerateOrchestrator()
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.post("/generate", json={"mode": "experience", "image_base64": "encoded"})
 
     assert response.status_code == 500
     assert response.json() == {

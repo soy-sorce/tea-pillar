@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from google.cloud.storage import Client as StorageClient
+
 from src.config import Settings
 from src.exceptions import NotConfiguredError, ReactionVideoUploadError
 
@@ -39,7 +40,7 @@ class ReactionVideoStorageService:
                     seconds=self._settings.reaction_video_upload_url_expires_seconds
                 ),
                 method="PUT",
-                content_type="video/mp4",
+                content_type=self._settings.reaction_video_content_type,
             )
         except Exception as exc:  # pragma: no cover - external API mapping
             raise ReactionVideoUploadError(

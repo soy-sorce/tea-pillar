@@ -3,14 +3,16 @@
 from datetime import timedelta
 from pathlib import Path
 from typing import Self, cast
+from urllib.parse import urlparse
 
 import google.auth
 import structlog
 from google.auth.transport.requests import Request
 from google.cloud.storage import Client as StorageClient
 from google.oauth2 import service_account
+
 from src.config import Settings
-from src.exceptions import NotConfiguredError
+from src.exceptions import NotConfiguredError, VeoGenerationError
 
 logger = structlog.get_logger(__name__)
 
@@ -29,8 +31,7 @@ class SignedUrlGenerator:
                 detail="gcp_project_id is empty",
             )
 
-        without_scheme = gcs_uri.removeprefix("gs://")
-        bucket_name, blob_name = without_scheme.split("/", 1)
+        bucket_name, blob_name = self._parse_gcs_uri(gcs_uri)
         client = self._build_storage_client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
@@ -42,9 +43,6 @@ class SignedUrlGenerator:
             ),
         }
 
-        # On Cloud Run, ADC usually resolves to token-only credentials. For signed URLs,
-        # pass an access token plus the signer service account email so the library can
-        # use IAMCredentials SignBlob instead of requiring a local private key file.
         if not self._is_local_signing_mode():
             service_account_email, access_token = self._resolve_runtime_signing_identity()
             signed_url_kwargs["service_account_email"] = service_account_email
@@ -113,3 +111,13 @@ class SignedUrlGenerator:
             )
 
         return service_account_email, token
+
+    def _parse_gcs_uri(self: Self, gcs_uri: str) -> tuple[str, str]:
+        parsed = urlparse(gcs_uri)
+        blob_name = parsed.path.lstrip("/")
+        if parsed.scheme != "gs" or not parsed.netloc or not blob_name:
+            raise VeoGenerationError(
+                message="Veo の出力 URI が不正です",
+                detail=f"gcs_uri={gcs_uri}",
+            )
+        return parsed.netloc, blob_name

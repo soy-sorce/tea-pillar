@@ -8,6 +8,7 @@ import structlog
 import vertexai
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
 from google.genai import Client, types
+
 from src.config import Settings
 from src.exceptions import NotConfiguredError, VeoGenerationError, VeoTimeoutError
 
@@ -58,9 +59,9 @@ class VeoClient:
                 model=self._settings.veo_model,
                 prompt=prompt,
                 config=types.GenerateVideosConfig(
-                    generate_audio=False,
+                    generate_audio=self._settings.veo_generate_audio,
                     output_gcs_uri=f"gs://{self._settings.gcs_bucket_name}/",
-                    duration_seconds=8,
+                    duration_seconds=self._settings.veo_duration_seconds,
                 ),
             )
         except DeadlineExceeded as exc:

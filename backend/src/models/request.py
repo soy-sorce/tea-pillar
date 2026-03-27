@@ -1,14 +1,14 @@
 """Request schemas."""
 
-from typing import Literal
-
 from pydantic import BaseModel, Field
+
+from src.domain.statuses import SessionMode
 
 
 class GenerateRequest(BaseModel):
     """POST /generate request."""
 
-    mode: Literal["experience", "production"] = Field(...)
+    mode: SessionMode = Field(...)
     image_base64: str = Field(..., min_length=1)
     audio_base64: str | None = Field(default=None)
     user_context: str | None = Field(default=None, max_length=500)

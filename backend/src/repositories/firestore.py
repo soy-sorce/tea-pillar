@@ -9,7 +9,9 @@ from typing import Any, Self, cast
 from google.api_core.exceptions import DeadlineExceeded, GoogleAPICallError, RetryError
 from google.cloud import firestore
 from google.cloud.firestore import AsyncClient
+
 from src.config import Settings
+from src.domain.statuses import RewardStatus, SessionStatus
 from src.exceptions import FirestoreError, ResourceNotFoundError
 from src.models.firestore import (
     BanditStateDocument,
@@ -39,8 +41,8 @@ class FirestoreClient:
         document = {
             "session_id": ctx.session_id,
             "mode": ctx.mode,
-            "status": "generating",
-            "reward_status": "not_started",
+            "status": SessionStatus.GENERATING,
+            "reward_status": RewardStatus.NOT_STARTED,
             "user_context": ctx.user_context,
             "created_at": firestore.SERVER_TIMESTAMP,
         }
@@ -53,8 +55,8 @@ class FirestoreClient:
 
     async def mark_session_generated(self: Self, ctx: GenerationContext) -> None:
         update = {
-            "status": "generated",
-            "reward_status": "not_started",
+            "status": SessionStatus.GENERATED,
+            "reward_status": RewardStatus.NOT_STARTED,
             "state_key": ctx.state_key,
             "template_id": ctx.bandit_selection.template_id if ctx.bandit_selection else None,
             "video_gcs_uri": ctx.video_gcs_uri,
@@ -69,7 +71,7 @@ class FirestoreClient:
 
     async def fail_session(self: Self, ctx: GenerationContext, error_msg: str) -> None:
         update = {
-            "status": "failed",
+            "status": SessionStatus.FAILED,
             "error": error_msg,
             "completed_at": firestore.SERVER_TIMESTAMP,
         }
@@ -100,7 +102,7 @@ class FirestoreClient:
     ) -> None:
         update = {
             "reaction_video_gcs_uri": reaction_video_gcs_uri,
-            "reward_status": "pending",
+            "reward_status": RewardStatus.PENDING,
         }
         await self._update_document(
             _COL_SESSIONS,
@@ -147,8 +149,8 @@ class FirestoreClient:
         reward_event_id: str,
     ) -> None:
         update = {
-            "status": "completed",
-            "reward_status": "done",
+            "status": SessionStatus.COMPLETED,
+            "reward_status": RewardStatus.DONE,
             "reward_event_id": reward_event_id,
             "completed_at": firestore.SERVER_TIMESTAMP,
         }
@@ -161,7 +163,7 @@ class FirestoreClient:
 
     async def mark_session_reward_failed(self: Self, *, session_id: str, error_msg: str) -> None:
         update = {
-            "reward_status": "failed",
+            "reward_status": RewardStatus.FAILED,
             "error": error_msg,
         }
         await self._update_document(

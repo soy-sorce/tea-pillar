@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Self, SupportsFloat, cast
+from typing import Any, Self, cast
 
 import httpx
+from pydantic import ValidationError
+
 from src.config import Settings
 from src.exceptions import ModelServiceError, ModelServiceTimeoutError, NotConfiguredError
+from src.models.external import ModelPredictResponse, ModelRewardAnalysisResponse
 from src.models.internal import CatFeatures, RewardAnalysisResult
 
 
@@ -30,22 +33,17 @@ class CatModelClient:
             "candidate_video_ids": candidate_video_ids,
         }
         payload = await self._post_json(path="/predict", body=body)
-        features = cast(Mapping[str, object], payload["features"])
-        aux_labels = cast(Mapping[str, object], payload["aux_labels"])
+        try:
+            response = ModelPredictResponse.model_validate(payload)
+        except ValidationError as exc:
+            raise ModelServiceError(detail=f"invalid /predict response: {exc}") from exc
+
         return CatFeatures(
-            features={str(key): _as_float(value) for key, value in features.items()},
-            emotion_label=str(aux_labels["emotion_label"]),
-            clip_top_label=str(aux_labels["clip_top_label"]),
-            meow_label=(
-                str(aux_labels["meow_label"]) if aux_labels.get("meow_label") is not None else None
-            ),
-            predicted_rewards={
-                str(key): _as_float(value)
-                for key, value in cast(
-                    Mapping[str, object],
-                    payload.get("predicted_rewards", {}),
-                ).items()
-            },
+            features=response.features,
+            emotion_label=response.aux_labels.emotion_label,
+            clip_top_label=response.aux_labels.clip_top_label,
+            meow_label=response.aux_labels.meow_label,
+            predicted_rewards=response.predicted_rewards,
         )
 
     async def analyze_reward(
@@ -64,17 +62,16 @@ class CatModelClient:
             "state_key": state_key,
         }
         payload = await self._post_json(path="/analyze-reward", body=body)
+        try:
+            response = ModelRewardAnalysisResponse.model_validate(payload)
+        except ValidationError as exc:
+            raise ModelServiceError(detail=f"invalid /analyze-reward response: {exc}") from exc
+
         return RewardAnalysisResult(
-            paw_hit_count=int(payload["paw_hit_count"]),
-            gaze_duration_seconds=_as_float(payload["gaze_duration_seconds"]),
-            reward=_as_float(payload["reward"]),
-            analysis_model_versions={
-                str(key): str(value)
-                for key, value in cast(
-                    Mapping[str, object],
-                    payload["analysis_model_versions"],
-                ).items()
-            },
+            paw_hit_count=response.paw_hit_count,
+            gaze_duration_seconds=response.gaze_duration_seconds,
+            reward=response.reward,
+            analysis_model_versions=response.analysis_model_versions,
         )
 
     async def _post_json(
@@ -106,7 +103,3 @@ class CatModelClient:
         if not isinstance(data, Mapping):
             raise ModelServiceError(detail="response body must be a JSON object")
         return cast(Mapping[str, Any], data)
-
-
-def _as_float(value: object) -> float:
-    return float(cast(SupportsFloat, value))

@@ -8,6 +8,12 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 from src.app import create_app
 from src.config import Settings, get_settings
+from src.dependencies import (
+    get_firestore_client,
+    get_reaction_video_storage_service,
+    get_reward_analysis_service,
+)
+from src.domain.statuses import SessionMode, SessionStatus
 from src.models.firestore import SessionDocument
 from src.models.request import RewardAnalysisTaskRequest
 
@@ -26,8 +32,8 @@ def test_reaction_upload_url_route_returns_signed_url(monkeypatch: MonkeyPatch) 
         async def get_session(self, session_id: str) -> SessionDocument:
             return SessionDocument(
                 session_id=session_id,
-                mode="production",
-                status="generated",
+                mode=SessionMode.PRODUCTION,
+                status=SessionStatus.GENERATED,
                 reward_status="not_started",
                 template_id="video-1",
                 state_key="unknown_happy_curious_cat",
@@ -43,10 +49,9 @@ def test_reaction_upload_url_route_returns_signed_url(monkeypatch: MonkeyPatch) 
                 f"gs://reaction-bucket/reaction_videos/{session_id}/upload.mp4",
             )
 
-    monkeypatch.setattr("src.routers.reaction.FirestoreClient", FakeFirestoreClient)
-    monkeypatch.setattr(
-        "src.routers.reaction.ReactionVideoStorageService",
-        FakeReactionVideoStorageService,
+    app.dependency_overrides[get_firestore_client] = lambda: FakeFirestoreClient(Settings())
+    app.dependency_overrides[get_reaction_video_storage_service] = lambda: (
+        FakeReactionVideoStorageService(Settings())
     )
 
     client = TestClient(app)
@@ -75,8 +80,8 @@ def test_reaction_complete_route_registers_uri_and_starts_background_task(
         async def get_session(self, session_id: str) -> SessionDocument:
             return SessionDocument(
                 session_id=session_id,
-                mode="production",
-                status="generated",
+                mode=SessionMode.PRODUCTION,
+                status=SessionStatus.GENERATED,
                 reward_status="not_started",
                 template_id="video-1",
                 state_key="unknown_happy_curious_cat",
@@ -106,12 +111,13 @@ def test_reaction_complete_route_registers_uri_and_starts_background_task(
         async def analyze(self, payload: object) -> None:
             calls["background_payload"] = payload
 
-    monkeypatch.setattr("src.routers.reaction.FirestoreClient", FakeFirestoreClient)
-    monkeypatch.setattr(
-        "src.routers.reaction.ReactionVideoStorageService",
-        FakeReactionVideoStorageService,
+    app.dependency_overrides[get_firestore_client] = lambda: FakeFirestoreClient(Settings())
+    app.dependency_overrides[get_reaction_video_storage_service] = lambda: (
+        FakeReactionVideoStorageService(Settings())
     )
-    monkeypatch.setattr("src.routers.reaction.RewardAnalysisService", FakeRewardAnalysisService)
+    app.dependency_overrides[get_reward_analysis_service] = lambda: FakeRewardAnalysisService(
+        Settings()
+    )
 
     client = TestClient(app)
     response = client.post(
@@ -132,3 +138,38 @@ def test_reaction_complete_route_registers_uri_and_starts_background_task(
     background_payload = cast(RewardAnalysisTaskRequest, calls["background_payload"])
     assert background_payload.template_id == "video-1"
     assert background_payload.state_key == "unknown_happy_curious_cat"
+
+
+def test_reaction_routes_reject_experience_sessions(monkeypatch: MonkeyPatch) -> None:
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings(environment="test")
+
+    class FakeFirestoreClient:
+        def __init__(self, settings: Settings) -> None:
+            del settings
+
+        async def get_session(self, session_id: str) -> SessionDocument:
+            return SessionDocument(
+                session_id=session_id,
+                mode=SessionMode.EXPERIENCE,
+                status=SessionStatus.GENERATED,
+                reward_status="not_started",
+                template_id="video-1",
+                state_key="unknown_happy_curious_cat",
+            )
+
+    app.dependency_overrides[get_firestore_client] = lambda: FakeFirestoreClient(Settings())
+
+    client = TestClient(app, raise_server_exceptions=False)
+    upload_url_response = client.post("/sessions/session-1/reaction-upload-url")
+    reaction_response = client.post(
+        "/sessions/session-1/reaction",
+        json={
+            "reaction_video_gcs_uri": "gs://reaction-bucket/reaction_videos/session-1/upload.mp4",
+        },
+    )
+
+    assert upload_url_response.status_code == 409
+    assert upload_url_response.json()["error_code"] == "SESSION_CONFLICT"
+    assert reaction_response.status_code == 409
+    assert reaction_response.json()["error_code"] == "SESSION_CONFLICT"

@@ -7,10 +7,11 @@ from typing import Self
 
 from src.config import Settings
 from src.exceptions import TemplateSelectionError
+from src.models.firestore import TemplateDocument
 from src.models.internal import BanditSelection
+from src.repositories.firestore import FirestoreClient
 from src.services.bandit.base import BanditBase
 from src.services.bandit.repository import BanditRepository
-from src.services.firestore.client import FirestoreClient
 
 
 class ThompsonBandit(BanditBase):
@@ -28,9 +29,10 @@ class ThompsonBandit(BanditBase):
         self: Self,
         state_key: str,
         predicted_rewards: dict[str, float],
+        templates: list[TemplateDocument] | None = None,
     ) -> BanditSelection:
-        templates = await self._repo.get_active_templates()
-        if not templates:
+        active_templates = templates or await self._repo.get_active_templates()
+        if not active_templates:
             raise TemplateSelectionError(
                 message="有効なテンプレートが存在しません",
                 detail="templates collection is empty",
@@ -39,7 +41,7 @@ class ThompsonBandit(BanditBase):
         entries = await self._repo.get_entries_by_state_key(state_key=state_key)
 
         best: BanditSelection | None = None
-        for template in templates:
+        for template in active_templates:
             entry = entries.get(template.template_id)
             alpha = entry.alpha if entry is not None else self._settings.thompson_default_alpha
             beta = entry.beta if entry is not None else self._settings.thompson_default_beta

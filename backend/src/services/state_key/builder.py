@@ -3,6 +3,7 @@
 from typing import Self
 
 import structlog
+
 from src.models.internal import CatFeatures
 
 logger = structlog.get_logger(__name__)

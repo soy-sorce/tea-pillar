@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 
+from src.domain.statuses import SessionMode
+
 
 @dataclass(slots=True)
 class CatFeatures:
@@ -43,7 +45,7 @@ class GenerationContext:
     """State carried through the /generate pipeline."""
 
     session_id: str
-    mode: str
+    mode: SessionMode
     image_base64: str
     audio_base64: str | None
     user_context: str | None

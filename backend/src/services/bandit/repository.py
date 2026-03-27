@@ -3,7 +3,7 @@
 from typing import Self
 
 from src.models.firestore import BanditStateDocument, TemplateDocument
-from src.services.firestore.client import FirestoreClient
+from src.repositories.firestore import FirestoreClient
 
 
 class BanditRepository:

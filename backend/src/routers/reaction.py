@@ -1,12 +1,18 @@
 """Routes for reaction video upload URL issuance and completion notification."""
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+
 from src.config import Settings, get_settings
-from src.exceptions import SessionConflictError
+from src.dependencies import (
+    get_firestore_client,
+    get_reaction_video_storage_service,
+    get_reward_analysis_service,
+)
 from src.models.request import ReactionUploadCompleteRequest, RewardAnalysisTaskRequest
 from src.models.response import ErrorResponse, ReactionUploadResponse, ReactionUploadUrlResponse
-from src.services.firestore.client import FirestoreClient
+from src.repositories.firestore import FirestoreClient
 from src.services.reward_analysis.service import RewardAnalysisService
+from src.services.session_policy import SessionPolicy
 from src.services.storage.reaction_video import ReactionVideoStorageService
 
 router = APIRouter(tags=["reaction"])
@@ -35,16 +41,11 @@ async def reaction_upload_url_options(session_id: str) -> Response:
 async def issue_reaction_upload_url(
     session_id: str,
     settings: Settings = Depends(get_settings),
+    firestore: FirestoreClient = Depends(get_firestore_client),
+    storage: ReactionVideoStorageService = Depends(get_reaction_video_storage_service),
 ) -> ReactionUploadUrlResponse:
-    firestore = FirestoreClient(settings=settings)
-    storage = ReactionVideoStorageService(settings=settings)
-
     session = await firestore.get_session(session_id=session_id)
-    if session.status != "generated":
-        raise SessionConflictError(
-            message="生成済みセッションに対してのみ upload URL を発行できます",
-            detail=f"session_status={session.status}",
-        )
+    SessionPolicy.require_generated_for_reaction_upload(session)
 
     upload_url, reaction_video_gcs_uri = storage.issue_upload_url(session_id=session_id)
     return ReactionUploadUrlResponse(
@@ -78,23 +79,14 @@ async def register_reaction_video(
     session_id: str,
     request: ReactionUploadCompleteRequest,
     background_tasks: BackgroundTasks,
-    settings: Settings = Depends(get_settings),
+    firestore: FirestoreClient = Depends(get_firestore_client),
+    storage: ReactionVideoStorageService = Depends(get_reaction_video_storage_service),
+    reward_analysis: RewardAnalysisService = Depends(get_reward_analysis_service),
 ) -> ReactionUploadResponse:
-    firestore = FirestoreClient(settings=settings)
-    storage = ReactionVideoStorageService(settings=settings)
-    reward_analysis = RewardAnalysisService(settings=settings)
-
     session = await firestore.get_session(session_id=session_id)
-    if session.status != "generated":
-        raise SessionConflictError(
-            message="生成済みセッションに対してのみ反応動画を登録できます",
-            detail=f"session_status={session.status}",
-        )
-    if not session.template_id or not session.state_key:
-        raise SessionConflictError(
-            message="反応動画受付に必要なセッション情報が不足しています",
-            detail="template_id_or_state_key_missing",
-        )
+    SessionPolicy.require_generated_for_reaction_registration(session)
+    assert session.template_id is not None
+    assert session.state_key is not None
 
     reaction_video_gcs_uri = storage.validate_gcs_uri(
         session_id=session_id,
