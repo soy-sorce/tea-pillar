@@ -7,7 +7,8 @@ from typing import Protocol, Self, cast
 
 import numpy as np
 import pandas as pd
-from src.artifacts import ArtifactBundle
+
+from .artifacts import ArtifactBundle
 
 
 class _Predictor(Protocol):

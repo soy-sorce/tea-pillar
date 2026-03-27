@@ -22,7 +22,8 @@ from typing import Any, Final, Self, TypedDict
 
 import numpy as np
 from google.cloud.storage import Client as StorageClient
-from src.schemas import PredictionRequest
+
+from .schemas import PredictionRequest
 
 EMOTION_MODEL_ID: Final[str] = "semihdervis/cat-emotion-classifier"
 POSE_MODEL_ID: Final[str] = "usyd-community/vitpose-plus-small"

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Self
 
-from src.artifacts import load_artifacts
-from src.reward.gaze_estimator import GazeEstimator
-from src.reward.paw_detector import PawDetector
-from src.reward.video_io import VideoClip
-from src.schemas import RewardAnalysisRequest, RewardAnalysisResponse
+from .artifacts import load_artifacts
+from .reward.gaze_estimator import GazeEstimator
+from .reward.paw_detector import PawDetector
+from .reward.video_io import VideoClip
+from .schemas import RewardAnalysisRequest, RewardAnalysisResponse
 
 
 class RewardAnalyzer:

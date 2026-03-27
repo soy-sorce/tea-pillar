@@ -11,6 +11,10 @@ from src.dependencies import (
 from src.models.request import ReactionUploadCompleteRequest, RewardAnalysisTaskRequest
 from src.models.response import ErrorResponse, ReactionUploadResponse, ReactionUploadUrlResponse
 from src.repositories.firestore import FirestoreClient
+from src.services.rate_limit.dependencies import (
+    enforce_reaction_complete_limits,
+    enforce_reaction_upload_limits,
+)
 from src.services.reward_analysis.service import RewardAnalysisService
 from src.services.session_policy import SessionPolicy
 from src.services.storage.reaction_video import ReactionVideoStorageService
@@ -40,6 +44,7 @@ async def reaction_upload_url_options(session_id: str) -> Response:
 )
 async def issue_reaction_upload_url(
     session_id: str,
+    _: None = Depends(enforce_reaction_upload_limits),
     settings: Settings = Depends(get_settings),
     firestore: FirestoreClient = Depends(get_firestore_client),
     storage: ReactionVideoStorageService = Depends(get_reaction_video_storage_service),
@@ -79,6 +84,7 @@ async def register_reaction_video(
     session_id: str,
     request: ReactionUploadCompleteRequest,
     background_tasks: BackgroundTasks,
+    _: None = Depends(enforce_reaction_complete_limits),
     firestore: FirestoreClient = Depends(get_firestore_client),
     storage: ReactionVideoStorageService = Depends(get_reaction_video_storage_service),
     reward_analysis: RewardAnalysisService = Depends(get_reward_analysis_service),

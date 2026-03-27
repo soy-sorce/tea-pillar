@@ -3,9 +3,19 @@ repos:
     rev: v0.4.8
     hooks:
       - id: ruff
+        files: ^(backend|model)/.*\.py$
       - id: ruff-format
+        files: ^(backend|model)/.*\.py$
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+  - repo: local
     hooks:
-      - id: mypy
+      - id: mypy-backend
+        name: mypy-backend
+        entry: bash -c 'cd backend && uv run mypy src'
+        language: system
+        pass_filenames: false
+      - id: mypy-model
+        name: mypy-model
+        entry: bash -c 'cd model && uv run mypy src tests'
+        language: system
+        pass_filenames: false

@@ -49,6 +49,12 @@ class SessionConflictError(NekkoflixBaseError):
     status_code = HTTPStatus.CONFLICT
 
 
+class RateLimitExceededError(NekkoflixBaseError):
+    error_code = "RATE_LIMIT_EXCEEDED"
+    message = "リクエスト上限を超えました"
+    status_code = HTTPStatus.TOO_MANY_REQUESTS
+
+
 class ModelServiceTimeoutError(NekkoflixBaseError):
     error_code = "MODEL_TIMEOUT"
     message = "モデルサービスの応答がタイムアウトしました"

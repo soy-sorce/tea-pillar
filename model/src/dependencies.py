@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from threading import Lock
 
-from src.predictor import Predictor
-from src.reward_analyzer import RewardAnalyzer
+from .predictor import Predictor
+from .reward_analyzer import RewardAnalyzer
 
 _predictor: Predictor | None = None
 _predictor_lock = Lock()

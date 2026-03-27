@@ -6,6 +6,7 @@ from src.dependencies import get_generate_orchestrator
 from src.models.request import GenerateRequest
 from src.models.response import ErrorResponse, GenerateResponse
 from src.services.orchestrator import GenerateOrchestrator
+from src.services.rate_limit.dependencies import enforce_generate_limits
 
 router = APIRouter(tags=["generate"])
 
@@ -27,6 +28,7 @@ async def generate_options() -> Response:
 )
 async def generate(
     request: GenerateRequest,
+    _: None = Depends(enforce_generate_limits),
     orchestrator: GenerateOrchestrator = Depends(get_generate_orchestrator),
 ) -> GenerateResponse:
     return await orchestrator.execute(request=request)

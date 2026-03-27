@@ -6,10 +6,10 @@ import json
 import sys
 from typing import Self
 
-from src.artifacts import load_artifacts
-from src.feature_extractor import FeatureExtractor
-from src.regressor import RewardRegressor
-from src.schemas import PredictionRequest, PredictionResponse
+from .artifacts import load_artifacts
+from .feature_extractor import FeatureExtractor
+from .regressor import RewardRegressor
+from .schemas import PredictionRequest, PredictionResponse
 
 
 class Predictor:
