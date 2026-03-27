@@ -4,7 +4,7 @@ from src.models.internal import CatFeatures
 from src.services.gemini.prompt_builder import PromptBuilder
 
 
-def test_build_includes_template_state_and_features() -> None:
+def test_build_uses_only_template_context_and_constraints() -> None:
     builder = PromptBuilder()
     features = CatFeatures(
         features={
@@ -20,15 +20,18 @@ def test_build_includes_template_state_and_features() -> None:
         template_text="A bright moving toy crossing the frame.",
         cat_features=features,
         state_key="unknown_happy_curious_cat",
-        user_context="甘えん坊で好奇心が強い",
+        user_context="Very affectionate and highly curious.",
     )
 
     assert "A bright moving toy crossing the frame." in prompt
-    assert "unknown_happy_curious_cat" in prompt
-    assert "- emotion_label: happy" in prompt
-    assert "- meow_label: unknown" in prompt
-    assert "- clip_curious_cat: 0.8000" in prompt
-    assert "甘えん坊で好奇心が強い" in prompt
+    assert "Very affectionate and highly curious." in prompt
+    assert "[Template Query]" in prompt
+    assert "[Owner Context]" in prompt
+    assert "[Constraints]" in prompt
+    assert "unknown_happy_curious_cat" not in prompt
+    assert "emotion_label" not in prompt
+    assert "clip_curious_cat" not in prompt
+    assert "meow_label" not in prompt
 
 
 def test_build_uses_default_text_when_user_context_is_missing() -> None:
@@ -47,11 +50,10 @@ def test_build_uses_default_text_when_user_context_is_missing() -> None:
         user_context=None,
     )
 
-    assert "（指定なし）" in prompt
-    assert "- meow_label: insistent" in prompt
+    assert "none" in prompt
 
 
-def test_build_sorts_feature_lines_and_includes_constraints() -> None:
+def test_build_includes_constraints_even_when_cat_features_exist() -> None:
     builder = PromptBuilder()
     features = CatFeatures(
         features={
@@ -70,12 +72,14 @@ def test_build_sorts_feature_lines_and_includes_constraints() -> None:
         user_context=None,
     )
 
-    assert prompt.index("- a_feature: 0.9000") < prompt.index("- z_feature: 0.1000")
-    assert "あなたは猫向け動画のプロンプトクリエイターです。" in prompt
-    assert "- 動画は音声なし" in prompt
+    assert "You create exactly one video prompt for a cat-focused video." in prompt
+    assert "- silent video" in prompt
+    assert "z_feature" not in prompt
+    assert "a_feature" not in prompt
+    assert "waiting_for_food_happy_curious_cat" not in prompt
 
 
-def test_build_supports_fallback_without_cat_features() -> None:
+def test_build_supports_missing_cat_features_without_fallback_prompt() -> None:
     builder = PromptBuilder()
 
     prompt = builder.build(
@@ -86,11 +90,9 @@ def test_build_supports_fallback_without_cat_features() -> None:
     )
 
     assert "A glowing toy floating in the air." in prompt
-    assert "You create exactly one video prompt for a cat-focused video." in prompt
-    assert "[Template]" in prompt
-    assert "[Owner Context]\nnone" in prompt
-    assert "[Requirements]" in prompt
-    assert "Do not mention labels, state keys, fallback, or unavailable analysis." in prompt
-    assert "Prioritize originality, playfulness, and strong visual interest." in prompt
-    assert "unknown" not in prompt
-    assert "Vertex AI fallback" not in prompt
+    assert "[Template Query]" in prompt
+    assert "[Owner Context]" in prompt
+    assert "none" in prompt
+    assert "[Constraints]" in prompt
+    assert "state key" not in prompt
+    assert "emotion_label" not in prompt
