@@ -41,6 +41,15 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/video-gen4cat-frontend:$COMMIT_SHA
       - --region=${_REGION}
       - --platform=managed
+      - --ingress=all
+      - --allow-unauthenticated
+      - --service-account=${_SERVICE_ACCOUNT}
+      - --cpu=1
+      - --memory=512Mi
+      - --timeout=60
+      - --min-instances=0
+      - --max-instances=10
+      - --concurrency=80
       - --quiet
 
 images:
@@ -54,4 +63,5 @@ substitutions:
   _REGION: "asia-northeast1"
   _REPOSITORY: "nekkoflix"
   _SERVICE_NAME: "video-gen4cat-frontend"
+  _SERVICE_ACCOUNT: "REPLACE_ME_FRONTEND_SERVICE_ACCOUNT"
   _VITE_BACKEND_URL: "https://video-gen4cat-gateway-17fqo4kd.an.gateway.dev"

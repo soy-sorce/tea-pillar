@@ -1,0 +1,66 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-model
+    args:
+      - build
+      - -t
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:$COMMIT_SHA"
+      - -t
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:latest"
+      - -f
+      - model/Dockerfile
+      - model/
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-model-sha
+    waitFor:
+      - build-model
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:$COMMIT_SHA"
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-model-latest
+    waitFor:
+      - build-model
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:latest"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: deploy-model
+    waitFor:
+      - push-model-sha
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "${_SERVICE_NAME}"
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --ingress=internal-and-cloud-load-balancing
+      - --no-allow-unauthenticated
+      - --service-account=${_SERVICE_ACCOUNT}
+      - --cpu=4
+      - --memory=8Gi
+      - --timeout=300
+      - --min-instances=0
+      - --max-instances=3
+      - --concurrency=1
+      - --set-env-vars=MODEL_ARTIFACT_DIR=/app/artifacts
+      - --quiet
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _REGION: "asia-northeast1"
+  _REPOSITORY: "nekkoflix"
+  _IMAGE_NAME: "nekkoflix-model"
+  _SERVICE_NAME: "nekkoflix-model"
+  _SERVICE_ACCOUNT: "REPLACE_ME_MODEL_SERVICE_ACCOUNT"
