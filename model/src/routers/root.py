@@ -1,7 +1,8 @@
 """Root route for service metadata."""
 
 from fastapi import APIRouter
-from src.artifacts import get_artifact_source
+
+from ..artifacts import get_artifact_source
 
 router = APIRouter(tags=["root"])
 

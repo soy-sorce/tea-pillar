@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from fastapi import APIRouter, Body, HTTPException
-from src.dependencies import get_predictor
-from src.schemas import PredictionRequest
+from fastapi import APIRouter, Body, Depends, HTTPException
+
+from ..dependencies import get_predictor
+from ..rate_limit import enforce_predict_limits
+from ..schemas import PredictionRequest
 
 router = APIRouter(tags=["predict"])
 
@@ -60,7 +62,10 @@ def _parse_request_body(body: object) -> tuple[PredictionRequest, bool]:
 
 
 @router.post("/predict", response_model=None)
-async def predict(body: object = Body(...)) -> dict[str, object]:
+async def predict(
+    body: object = Body(...),
+    _: None = Depends(enforce_predict_limits),
+) -> dict[str, object]:
     """Run model prediction and return the local or Vertex-compatible response."""
     request, is_vertex_envelope = _parse_request_body(body)
     response = get_predictor().predict(request=request).to_dict()

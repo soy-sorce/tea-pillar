@@ -16,6 +16,7 @@ from src.dependencies import (
 from src.domain.statuses import SessionMode, SessionStatus
 from src.models.firestore import SessionDocument
 from src.models.request import RewardAnalysisTaskRequest
+from src.services.rate_limit.policies import WindowLimit
 
 
 def test_reaction_upload_url_route_returns_signed_url(monkeypatch: MonkeyPatch) -> None:
@@ -173,3 +174,60 @@ def test_reaction_routes_reject_experience_sessions(monkeypatch: MonkeyPatch) ->
     assert upload_url_response.json()["error_code"] == "SESSION_CONFLICT"
     assert reaction_response.status_code == 409
     assert reaction_response.json()["error_code"] == "SESSION_CONFLICT"
+
+
+def test_reaction_complete_route_returns_429_when_session_limit_is_exceeded(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings(environment="test")
+    monkeypatch.setattr(
+        "src.services.rate_limit.policies.REACTION_COMPLETE_SESSION_LIMIT",
+        WindowLimit(name="reaction_complete_per_session_minute", requests=1, window_seconds=60),
+    )
+
+    class FakeFirestoreClient:
+        async def get_session(self, session_id: str) -> SessionDocument:
+            return SessionDocument(
+                session_id=session_id,
+                mode=SessionMode.PRODUCTION,
+                status=SessionStatus.GENERATED,
+                reward_status="not_started",
+                template_id="video-1",
+                state_key="unknown_happy_curious_cat",
+            )
+
+        async def attach_reaction_video(
+            self,
+            *,
+            session_id: str,
+            reaction_video_gcs_uri: str,
+        ) -> None:
+            del session_id, reaction_video_gcs_uri
+
+    class FakeReactionVideoStorageService:
+        def validate_gcs_uri(self, *, session_id: str, reaction_video_gcs_uri: str) -> str:
+            del session_id
+            return reaction_video_gcs_uri
+
+    class FakeRewardAnalysisService:
+        async def analyze(self, payload: object) -> None:
+            del payload
+
+    app.dependency_overrides[get_firestore_client] = lambda: FakeFirestoreClient()
+    app.dependency_overrides[get_reaction_video_storage_service] = lambda: (
+        FakeReactionVideoStorageService()
+    )
+    app.dependency_overrides[get_reward_analysis_service] = lambda: FakeRewardAnalysisService()
+
+    client = TestClient(app, raise_server_exceptions=False)
+    payload = {
+        "reaction_video_gcs_uri": "gs://reaction-bucket/reaction_videos/session-1/upload.mp4",
+    }
+
+    first_response = client.post("/sessions/session-1/reaction", json=payload)
+    second_response = client.post("/sessions/session-1/reaction", json=payload)
+
+    assert first_response.status_code == 202
+    assert second_response.status_code == 429
+    assert second_response.json()["error_code"] == "RATE_LIMIT_EXCEEDED"

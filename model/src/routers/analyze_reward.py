@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from fastapi import APIRouter, Body, HTTPException
-from src.dependencies import get_reward_analyzer
-from src.schemas import RewardAnalysisRequest
+from fastapi import APIRouter, Body, Depends, HTTPException
+
+from ..dependencies import get_reward_analyzer
+from ..rate_limit import enforce_analyze_reward_limits
+from ..schemas import RewardAnalysisRequest
 
 router = APIRouter(tags=["reward-analysis"])
 
@@ -36,7 +38,10 @@ def _to_request(payload: Mapping[str, object]) -> RewardAnalysisRequest:
 
 
 @router.post("/analyze-reward", response_model=None)
-async def analyze_reward(body: object = Body(...)) -> dict[str, object]:
+async def analyze_reward(
+    body: object = Body(...),
+    _: None = Depends(enforce_analyze_reward_limits),
+) -> dict[str, object]:
     """Analyze a reaction video and return reward metrics."""
     if not isinstance(body, Mapping):
         raise HTTPException(status_code=400, detail="request body must be a JSON object")

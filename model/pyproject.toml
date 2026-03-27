@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "mypy>=1.13.0",
+    "pytest>=8.3.0",
     "ruff>=0.8.0",
 ]
 
@@ -45,6 +46,7 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "ANN"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+explicit_package_bases = true
 ignore_missing_imports = false
 disallow_untyped_defs = true
 warn_return_any = true

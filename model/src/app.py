@@ -1,7 +1,8 @@
 """FastAPI application entrypoint for the Cloud Run model service."""
 
 from fastapi import FastAPI
-from src.routers import analyze_reward, health, predict, root
+
+from .routers import analyze_reward, health, predict, root
 
 
 def create_app() -> FastAPI:

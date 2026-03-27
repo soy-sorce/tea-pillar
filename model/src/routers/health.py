@@ -1,8 +1,9 @@
 """Health route."""
 
 from fastapi import APIRouter
-from src.artifacts import get_artifact_source
-from src.dependencies import _predictor
+
+from ..artifacts import get_artifact_source
+from ..dependencies import _predictor
 
 router = APIRouter(tags=["health"])
 
