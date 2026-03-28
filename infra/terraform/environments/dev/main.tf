@@ -77,10 +77,6 @@ module "iam" {
   project_id                 = var.project_id
   region                     = var.region
   environment                = var.environment
-  backend_service_name       = var.backend_service_name
-  frontend_service_name      = var.frontend_service_name
-  model_service_name         = var.model_service_name
-  api_gateway_service_name   = var.api_gateway_name
   gcs_bucket_name            = module.gcs.bucket_name
   reaction_video_bucket_name = module.reaction_video_gcs.bucket_name
 }
@@ -100,6 +96,7 @@ module "api_gateway" {
 module "frontend_trigger" {
   source       = "../../modules/cloud_build_trigger"
   project_id   = var.project_id
+  enabled      = var.enable_cloud_build_triggers
   name         = var.frontend_trigger_name
   description  = "Deploy frontend on main branch push"
   filename     = "infra/ci/cloud_build/cloudbuild-frontend.yaml"
@@ -122,6 +119,7 @@ module "frontend_trigger" {
 module "backend_trigger" {
   source       = "../../modules/cloud_build_trigger"
   project_id   = var.project_id
+  enabled      = var.enable_cloud_build_triggers
   name         = var.backend_trigger_name
   description  = "Deploy backend on main branch push"
   filename     = "infra/ci/cloud_build/cloudbuild-backend.yaml"
@@ -152,6 +150,7 @@ module "backend_trigger" {
 module "model_trigger" {
   source       = "../../modules/cloud_build_trigger"
   project_id   = var.project_id
+  enabled      = var.enable_cloud_build_triggers
   name         = var.model_trigger_name
   description  = "Deploy model on main branch push"
   filename     = "infra/ci/cloud_build/cloudbuild-model.yaml"
@@ -163,17 +162,19 @@ module "model_trigger" {
     "infra/ci/cloud_build/cloudbuild-model.yaml",
   ]
   substitutions = {
-    _REGION          = var.region
-    _REPOSITORY      = var.artifact_registry_repository_id
-    _SERVICE_NAME    = var.model_service_name
-    _IMAGE_NAME      = var.model_service_name
-    _SERVICE_ACCOUNT = module.iam.model_service_account_email
+    _REGION                  = var.region
+    _REPOSITORY              = var.artifact_registry_repository_id
+    _SERVICE_NAME            = var.model_service_name
+    _IMAGE_NAME              = var.model_service_name
+    _SERVICE_ACCOUNT         = module.iam.model_service_account_email
+    _BACKEND_SERVICE_ACCOUNT = module.iam.backend_service_account_email
   }
 }
 
 module "api_gateway_trigger" {
   source       = "../../modules/cloud_build_trigger"
   project_id   = var.project_id
+  enabled      = var.enable_cloud_build_triggers
   name         = var.api_gateway_trigger_name
   description  = "Deploy API Gateway config on main branch push"
   filename     = "infra/ci/cloud_build/cloudbuild-apigateway.yaml"

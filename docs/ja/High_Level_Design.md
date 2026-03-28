@@ -717,7 +717,7 @@ Internet
 
 ```bash
 # GCP
-GCP_PROJECT_ID=your-project-id
+GCP_PROJECT_ID=REPLACE_ME_PROJECT_ID
 GCP_REGION=asia-northeast1
 
 # Vertex AI

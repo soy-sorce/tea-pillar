@@ -7,36 +7,11 @@ schemes:
   - https
 produces:
   - application/json
-x-google-management:
-  metrics:
-    - name: gateway-requests
-      displayName: Gateway requests
-      valueType: INT64
-      metricKind: DELTA
-    - name: generate-requests
-      displayName: Generate requests
-      valueType: INT64
-      metricKind: DELTA
-  quota:
-    limits:
-      - name: gateway-requests-per-minute
-        metric: gateway-requests
-        unit: "1/min/{project}"
-        values:
-          STANDARD: 1000
-      - name: generate-requests-per-minute
-        metric: generate-requests
-        unit: "1/min/{project}"
-        values:
-          STANDARD: 200
 paths:
   /health:
     get:
       summary: Health check
       operationId: health
-      x-google-quota:
-        metricCosts:
-          gateway-requests: 1
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
@@ -60,10 +35,6 @@ paths:
     post:
       summary: Generate a cat-tailored video
       operationId: generate
-      x-google-quota:
-        metricCosts:
-          gateway-requests: 1
-          generate-requests: 1
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
@@ -94,6 +65,11 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
   /sessions/{session_id}/reaction-upload-url:
+    parameters:
+      - in: path
+        name: session_id
+        required: true
+        type: string
     options:
       summary: CORS preflight for reaction upload URL
       operationId: reactionUploadUrlOptions
@@ -106,18 +82,10 @@ paths:
     post:
       summary: Issue a signed upload URL for a reaction video
       operationId: issueReactionUploadUrl
-      x-google-quota:
-        metricCosts:
-          gateway-requests: 1
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
         deadline: 60.0
-      parameters:
-        - in: path
-          name: session_id
-          required: true
-          type: string
       responses:
         "200":
           description: OK
@@ -134,6 +102,11 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
   /sessions/{session_id}/reaction:
+    parameters:
+      - in: path
+        name: session_id
+        required: true
+        type: string
     options:
       summary: CORS preflight for reaction completion
       operationId: reactionCompleteOptions
@@ -146,18 +119,11 @@ paths:
     post:
       summary: Notify backend that the reaction video upload has completed
       operationId: registerReactionVideo
-      x-google-quota:
-        metricCosts:
-          gateway-requests: 1
       x-google-backend:
         address: ${backend_url}
         path_translation: APPEND_PATH_TO_ADDRESS
         deadline: 60.0
       parameters:
-        - in: path
-          name: session_id
-          required: true
-          type: string
         - in: body
           name: body
           required: true

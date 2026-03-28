@@ -51,6 +51,21 @@ steps:
       - --set-env-vars=MODEL_ARTIFACT_DIR=/app/artifacts
       - --quiet
 
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: grant-model-invoker-to-backend
+    waitFor:
+      - deploy-model
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - add-iam-policy-binding
+      - "${_SERVICE_NAME}"
+      - --region=${_REGION}
+      - --member=serviceAccount:${_BACKEND_SERVICE_ACCOUNT}
+      - --role=roles/run.invoker
+      - --quiet
+
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:$COMMIT_SHA"
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE_NAME}:latest"
@@ -64,3 +79,4 @@ substitutions:
   _IMAGE_NAME: "nekkoflix-model"
   _SERVICE_NAME: "nekkoflix-model"
   _SERVICE_ACCOUNT: "REPLACE_ME_MODEL_SERVICE_ACCOUNT"
+  _BACKEND_SERVICE_ACCOUNT: "REPLACE_ME_BACKEND_SERVICE_ACCOUNT"

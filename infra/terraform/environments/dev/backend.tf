@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = "gcp-hackathon-2026-tea-pillar-tfstate"
+    bucket = "gdgoc-hackathon-2026-491600-tea-pillar-tfstate"
     prefix = "terraform/dev"
   }
 }

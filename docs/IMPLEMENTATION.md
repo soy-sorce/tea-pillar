@@ -159,7 +159,7 @@ def get_user(user_id: int) -> User:
 
 ```
 # .env.example の例
-GCP_PROJECT_ID=your-project-id
+GCP_PROJECT_ID=REPLACE_ME_PROJECT_ID
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 API_SECRET_KEY=your-secret-key
 ```

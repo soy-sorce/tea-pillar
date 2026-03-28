@@ -62,22 +62,6 @@ resource "google_storage_bucket_iam_member" "model_reaction_video_viewer" {
   member = "serviceAccount:${google_service_account.model.email}"
 }
 
-resource "google_cloud_run_v2_service_iam_member" "model_invoker_by_backend" {
-  project  = var.project_id
-  location = var.region
-  name     = var.model_service_name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.backend.email}"
-}
-
-resource "google_cloud_run_v2_service_iam_member" "backend_invoker_by_apigateway" {
-  project  = var.project_id
-  location = var.region
-  name     = var.backend_service_name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.apigateway.email}"
-}
-
 resource "google_project_iam_member" "backend_vertex_ai_user" {
   project = var.project_id
   role    = "roles/aiplatform.user"
