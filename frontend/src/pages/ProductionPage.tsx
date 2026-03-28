@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera, FileText, Radar, Mic, ArrowLeft } from "lucide-react";
 
+import { ExampleChips } from "@/components/ui/ExampleChips";
+
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -15,6 +17,12 @@ import { useMotionDetection } from "@/hooks/useMotionDetection";
 type Step = 0 | 1;
 
 const STEPS = ["コンテキスト入力", "撮影・録音"];
+
+const PROD_CONTEXT_EXAMPLES = [
+    "好奇心旺盛でなんでも嚇ぎまわる。窓の外の鳥によく反応する。",
+    "おっとりした室内猫。日向こっこが好きで、キラキラしたものに反応する。",
+    "活発なオス猫。おもちゃが大好きで、素早く動くものに敏感。",
+] as const;
 
 export function ProductionPage(): React.JSX.Element {
     const navigate = useNavigate();
@@ -151,6 +159,10 @@ export function ProductionPage(): React.JSX.Element {
                             className="mt-3 w-full resize-none rounded-card border border-border bg-surface-alt px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-colors focus:border-accent focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
                         />
                         <p className="mt-1 text-right text-xs text-text-muted">{userContext.length} / 500</p>
+                        <ExampleChips
+                            examples={PROD_CONTEXT_EXAMPLES}
+                            onSelect={setUserContext}
+                        />
                     </div>
 
                     <Button

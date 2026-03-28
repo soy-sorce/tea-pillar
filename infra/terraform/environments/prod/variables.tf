@@ -91,6 +91,11 @@ variable "backend_log_level" {
   default = "INFO"
 }
 
+variable "enable_cloud_build_triggers" {
+  type    = bool
+  default = false
+}
+
 variable "github_owner" {
   type = string
 }

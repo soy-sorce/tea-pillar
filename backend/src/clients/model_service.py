@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from typing import Any, Self, cast
 
 import httpx
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
 from pydantic import ValidationError
 
 from src.config import Settings
@@ -88,9 +90,10 @@ class CatModelClient:
             )
 
         timeout = httpx.Timeout(self._settings.model_service_timeout_seconds)
+        headers = {"Authorization": f"Bearer {self._get_identity_token(base_url)}"}
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(f"{base_url}{path}", json=body)
+                response = await client.post(f"{base_url}{path}", json=body, headers=headers)
                 response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise ModelServiceTimeoutError(detail=str(exc)) from exc
@@ -103,3 +106,16 @@ class CatModelClient:
         if not isinstance(data, Mapping):
             raise ModelServiceError(detail="response body must be a JSON object")
         return cast(Mapping[str, Any], data)
+
+    def _get_identity_token(self: Self, audience: str) -> str:
+        try:
+            token = cast(
+                str | None,
+                id_token.fetch_id_token(Request(), audience),  # type: ignore[no-untyped-call]
+            )
+        except Exception as exc:
+            raise ModelServiceError(detail=f"id_token_fetch_failed: {exc}") from exc
+
+        if not token:
+            raise ModelServiceError(detail="id_token_fetch_failed: empty token")
+        return token

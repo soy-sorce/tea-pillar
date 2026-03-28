@@ -1,10 +1,12 @@
 resource "google_project_service" "cloudbuild" {
+  count              = var.enabled ? 1 : 0
   project            = var.project_id
   service            = "cloudbuild.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_cloudbuild_trigger" "this" {
+  count       = var.enabled ? 1 : 0
   project     = var.project_id
   name        = var.name
   description = var.description

@@ -27,12 +27,10 @@ infra/
         ├── api_gateway/
         ├── artifact_registry/
         ├── cloud_build_trigger/
-        ├── cloud_run/
         ├── firestore/
         ├── gcs/
         ├── iam/
-        ├── vertex_ai/
-        └── vpc/
+        └── vertex_ai/
 ```
 
 ## 何を管理しているか
@@ -48,7 +46,9 @@ infra/
 - Cloud Build trigger
 - IAM
 - Vertex AI 関連 resource
-- VPC
+
+Cloud Run 自体の deploy は Terraform ではなく `infra/ci/cloud_build/*.yaml` の
+`gcloud run deploy` で管理する。Terraform は周辺基盤と trigger のみを管理する。
 
 ## Terraform
 

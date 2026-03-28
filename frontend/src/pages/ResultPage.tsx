@@ -151,12 +151,7 @@ export function ResultPage(): React.JSX.Element {
     ]);
 
     if (resultState === "loading") {
-        return (
-            <LoadingScreen
-                stateKey={response?.state_key}
-                templateName={response?.template_name}
-            />
-        );
+        return <LoadingScreen />;
     }
 
     if (resultState === "done" && response) {
@@ -175,7 +170,6 @@ export function ResultPage(): React.JSX.Element {
                         <div className="rounded-card-lg border border-border bg-surface p-5 shadow-card space-y-2 text-sm text-text-secondary">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">生成完了</p>
                             <p>テンプレート: <span className="font-semibold text-text-primary">{response.template_name}</span></p>
-                            <p className="text-xs text-text-muted font-mono">state_key: {response.state_key}</p>
                         </div>
 
                         <div className="text-center">

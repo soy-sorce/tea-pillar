@@ -42,3 +42,8 @@ variable "substitutions" {
   type    = map(string)
   default = {}
 }
+
+variable "enabled" {
+  type    = bool
+  default = true
+}
