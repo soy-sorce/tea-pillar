@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera, Mic, FileText, Radar, ArrowLeft } from "lucide-react";
 
+import { ExampleChips } from "@/components/ui/ExampleChips";
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -16,6 +17,12 @@ type Step = 0 | 1 | 2;
 
 const STEPS = ["撮影", "鳴きマネ録音", "コンテキスト"];
 const CAPTURE_WAIT_MS = 1000;
+
+const EXP_CONTEXT_EXAMPLES = [
+    "おっとりした甘えん坊。大きな音が苦手で、膝の上が一番好き。",
+    "活発で好奇心旺盛。動くものに素早く反応し、おもちゃが大好き。",
+    "ちょっとクールで気まぐれ。でも魚の缶詰には目がない。",
+] as const;
 const MIC_SECONDS = 3;
 
 
@@ -389,6 +396,10 @@ export function ExperiencePage(): React.JSX.Element {
                             className="mt-3 w-full resize-none rounded-card border border-border bg-surface-alt px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-colors focus:border-accent focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
                         />
                         <p className="mt-1 text-right text-xs text-text-muted">{userContext.length} / 500</p>
+                        <ExampleChips
+                            examples={EXP_CONTEXT_EXAMPLES}
+                            onSelect={setUserContext}
+                        />
                     </div>
 
                     {/* 生成ボタン */}
