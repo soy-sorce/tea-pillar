@@ -28,7 +28,7 @@ export function LandingPage(): React.JSX.Element {
                 <div className="animate-slideUp text-center">
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-accent-light px-4 py-1.5 text-xs font-semibold text-accent-dark shadow-inner-sm">
                         <Sparkles size={13} />
-                        Pets in the Loop
+                        GDGoC Hackathon 2026
                     </div>
                     <h1 className="text-6xl font-black tracking-tight text-text-primary sm:text-7xl md:text-8xl">
                         nekko<span className="text-gradient">flix</span>

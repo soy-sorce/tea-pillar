@@ -151,12 +151,7 @@ export function ResultPage(): React.JSX.Element {
     ]);
 
     if (resultState === "loading") {
-        return (
-            <LoadingScreen
-                stateKey={response?.state_key}
-                templateName={response?.template_name}
-            />
-        );
+        return <LoadingScreen />;
     }
 
     if (resultState === "done" && response) {
