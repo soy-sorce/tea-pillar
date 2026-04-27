@@ -5,7 +5,7 @@
 ## build and deploy
 
 ```bash
-cd /home/shouh/team_project/GCP_hackathon_2026/tea-pillar
+cd tea-pillar
 bash scripts/deploy_ML/deploy_model_to_cloud_run.sh \
   --artifact-registry-repo YOUR_REPO \
   --model-image-tag v1 \
