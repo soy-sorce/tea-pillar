@@ -19,7 +19,7 @@ MODELING.md v2 artifact bundle を Hugging Face Hub に置けるようにして�
 ## 1. artifact を再生成
 
 ```bash
-cd /home/shouh/team_project/GCP_hackathon_2026/tea-pillar/model
+cd tea-pillar/model
 uv run python scripts/build_modeling_v2_artifacts.py \
   --input ./train-data-20260326T165440Z-3-001.zip
 ```
@@ -28,7 +28,7 @@ uv run python scripts/build_modeling_v2_artifacts.py \
 
 ```bash
 export HF_TOKEN=...
-cd /home/shouh/team_project/GCP_hackathon_2026/tea-pillar/model
+cd model
 uv run python scripts/publish_artifacts_to_huggingface.py \
   --repo-id your-org/nekkoflix-contextual-bandit
 ```
